@@ -13,23 +13,26 @@ import logging
 import numpy as np
 import multiprocessing as mp
 
+import matplotlib
+matplotlib.use('Agg')
+
 import sys
-#sys.path.insert(0, '/home/salasp/python')
-sys.path.insert(0, '/net/para13/data1/psalas/LOFAR/antennafield-0.1')
-sys.path.insert(0, '/net/para13/data1/psalas/LOFAR/aoflagger')
-sys.path.insert(0, '/net/para13/data1/psalas/LOFAR/holog-0.2')
+sys.path.insert(0, '/home/salasp/python')
+sys.path.insert(0, '/home/salasp/python/antennafield-0.1')
+sys.path.insert(0, '/home/salasp/python/aoflagger')
+sys.path.insert(0, '/home/salasp/python/holog-0.2')
 from taholog import misc, to_freq, xcorr, gencal, applycal, \
                     clip, average, to_uvhol, solve, order, plot
 
 if __name__ == '__main__':
 
     # User input.
-    target_id = 'L658168' # SAS id of the observation with the map (many rings)
-    reference_ids = 'L658160,L658162,L658164,L658166'
-    trunk_dir = '/net/para13/data1/psalas/BFBEAM'
+    target_id = 'L697741' # SAS id of the observation with the map (many rings)
+    reference_ids = 'L697733,L697735,L697737,L697739'
+    trunk_dir = '/data/scratch/holography/tutorial/data/new_holography_obs/hba_cs002/'
     target_beams = 169
     spws = 10
-    logfile = 'taholog_proc_3.log'
+    logfile = 'taholog_proc_vlad_debug.log'
     debug = False # Run steps without multiprocessing to get back all the error messages?
     """
     When using the multiprocessing module, I cannot log the error messages that take place in a child process.
@@ -54,7 +57,15 @@ if __name__ == '__main__':
     rfiflag = True
     flagging_threshold = 2.0      # Data is flagged if above this time the local rms.
     threshold_shrink_power = 0.05 # How big are the regions where the local rms is computed.
-    xcorr_cpus = 20
+    xcorr_cpus = 12
+
+    # plot_beam options.
+    # Will produce a plot of the phase of a beam for every refernce station and spectral window.
+    plot_beam_spws = range(0,spws)
+    plot_beam_refs = reference_ids
+    plot_beam_outp = '{0}/beam_plots.pdf'.format(trunk_dir)
+    plot_beam_beam = 0
+    plot_beam_ffun = lambda ref, spw: '{0}_xcorr/{1}/SAP000_B{2:03d}_P000_spw{3}_avg{4}.h5'.format(target_id, ref, plot_beam_beam, spw, xcorr_dt)
 
     # gencal step options.
     # Finds the inverse of the Jones matrix of the central beam.
@@ -98,7 +109,6 @@ if __name__ == '__main__':
     solve_uvhol_pols = ['XX', 'YY'] # Polarizations for which we want phase and amplitude values. Do 'XX' and 'YY' only, as the cross terms should contain noise.
     solve_uvhol_spws = range(0,spws)
     solve_weighted = True  # Use wights when solving for the amplitudes and phases of the stations?
-    solve_use_cov = False
 
     # Order_sols step options.
     # Puts all the solutions for one polarization in a single file.
@@ -121,18 +131,17 @@ if __name__ == '__main__':
     # to_uvhol creates .uvhol files with the same filename as the output from average.
  
     # All these steps are necessary.
-    #steps = ['to_freq','xcorr', 
+    #steps = [#'to_freq','xcorr', 
     #         'gencal', 'applycal', 
     #         'clip', 'average_t', 
+             #'to_uvhol', 
+		#'average_uvhol', 'solve_uvhol', 
+             #'order_sols', 'plot_report'] 
+    steps = ['plot_beam']
+    #steps = [ 'average_t', 
     #         'to_uvhol', 'average_uvhol', 'solve_uvhol', 
     #         'order_sols', 'plot_report'] 
-    steps = ['xcorr', 
-             'gencal', 'applycal', 
-             'clip', 'average_t', 
-             'to_uvhol', 'average_uvhol', 'solve_uvhol', 
-             'order_sols']
-    steps = ['solve_uvhol', 'order_sols']
-
+    #steps = ['plot_report']
     # End of user input.
 
     # Set up logger.
@@ -197,11 +206,8 @@ if __name__ == '__main__':
         xcorr_output_dir = '{0}_xcorr'.format(target_id)
         if not os.path.isdir(xcorr_output_dir):
             os.makedirs(xcorr_output_dir, exist_ok=True)
-        
-        for ref in reference_ids.split(','):
-            xcorr_ref_dir = '{0}/{1}'.format(xcorr_output_dir, ref)
-            if not os.path.isdir(xcorr_ref_dir):
-                os.makedirs(xcorr_ref_dir, exist_ok=True)
+            for ref in reference_ids.split(','):
+                os.makedirs('{0}/{1}'.format(xcorr_output_dir, ref), exist_ok=True)
         
         target = lambda ibm, ifn: '{0}/{0}_SAP000_B{1:03d}_P000_bf_spw{2}.h5'.format(target_id, ibm, ifn)
         refers = lambda ref, ifn: '{0}/{0}_SAP000_B000_P000_bf_spw{1}.h5'.format(ref, ifn)
@@ -264,6 +270,10 @@ if __name__ == '__main__':
                                   'rfi_kwargs': rfi_kwargs}
 
                         xcorr.main(tgt, ref, out, **kwargs)
+
+    if 'plot_beam' in steps:
+
+        plot.plot_phase_beam(plot_beam_ffun, plot_beam_outp, plot_beam_spws, plot_beam_refs)
 
     if 'gencal' in steps:
 
@@ -484,7 +494,7 @@ if __name__ == '__main__':
                     logger.info('Solving: {0} to {1}'.format(inp, out))
 
                     try:
-                        solve.uvhol(inp, out, weighted=solve_weighted, use_cov=solve_use_cov)
+                        solve.uvhol(inp, out, weighted=solve_weighted)
                     except (np.linalg.linalg.LinAlgError, ValueError):
                         logger.info("Could not solve: {0}".format(inp))
 
