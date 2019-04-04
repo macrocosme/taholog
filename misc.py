@@ -3,6 +3,7 @@ Miscellaneous functions.
 """
 
 import re
+import numpy as np
 
 from functools import reduce
 
@@ -63,3 +64,38 @@ def tryint(str):
     except:
         return str
 
+def gaussian(x, sigma, center, amplitude):
+    """
+    Gaussian function in one dimension.
+    
+    :param x: x values for which to evaluate the Gaussian.
+    :type x: array
+    :param sigma: Standard deviation of the Gaussian.
+    :type sigma: float
+    :param center: Center of the Gaussian.
+    :type center: float
+    :param amplitude: Peak value of the Gaussian.
+    :type amplitude: float
+    :returns: Gaussian function of the given amplitude and standard deviation evaluated at x.
+    :rtype: array
+    """
+
+    return amplitude*np.exp(-np.power((x - center), 2.)/(2.*np.power(sigma, 2.)))
+
+def gauss_area(amplitude, sigma):
+    """
+    Returns the area under a Gaussian of a given amplitude and sigma.
+    
+    .. math:
+    
+        Area=\\sqrt(2\\pi)A\\sigma
+        
+    :param amplitude: Amplitude of the Gaussian, :math:`A`.
+    :type A: array
+    :param sigma: Standard deviation fo the Gaussian, :math:`\\sigma`.
+    :type sigma: array
+    :returns: The area under a Gaussian of a given amplitude and standard deviation.
+    :rtype: array
+    """
+    
+    return amplitude*sigma*np.sqrt(2.*np.pi)
