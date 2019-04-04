@@ -3,6 +3,7 @@
 
 import re
 import pickle
+import logging
 import numpy as np
 
 from lmfit.models import PolynomialModel
@@ -42,6 +43,8 @@ def main(files, out, phase_ref_station, degree):
     r'''
     '''
 
+    logger = logging.getLogger(__name__)
+
     # Make arrays to keep the solutions.
     data = np.empty(len(files), dtype=object)
     stations = np.empty(len(files), dtype=object)
@@ -64,7 +67,7 @@ def main(files, out, phase_ref_station, degree):
     utimes = np.unique(times)
     taxis = max(map(int, utimes)) + 1
 
-    print(ufreqs)
+    logger.info('Frequencies loaded: {0}'.format(ufreqs))
 
     # Join all solutions for every station
     sols = dict.fromkeys(ustats)
