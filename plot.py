@@ -1,5 +1,7 @@
 
+import h5py
 import pickle
+import logging
 import numpy as np
 import pylab as plt
 
@@ -7,6 +9,98 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 from taholog import sols_to_mods as s2m
 from holog.fourierimaging import dft2_fast
+
+def plot_phase_beam(beam_data_files_func, outplot, spws, refs):
+    """
+    Generates a plot showing the phase of the beam.
+    """
+
+    nx = 2
+    ny = 5
+
+    logger = logging.getLogger(__name__)
+
+    fig = plt.figure(frameon=False, dpi=150, figsize=(6,6))
+    grid = plt.GridSpec(ny, nx, wspace=0.1, hspace=0.3)
+
+    ax = fig.add_subplot(111)
+            
+    # Turn off axis lines and ticks of the big subplot
+    ax.spines['top'].set_color('none')
+    ax.spines['bottom'].set_color('none')
+    ax.spines['left'].set_color('none')
+    ax.spines['right'].set_color('none')
+    ax.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
+
+    # Set common labels
+    ax.set_xlabel('Time sample')
+    ax.set_ylabel('Phase (rad)')
+
+    for s,spw in enumerate(spws):
+
+        y = s//nx
+        x = s%nx
+  
+        logger.info('s,x,y: {0}, {1}, {2}'.format(s, x, y))
+ 
+        ax = fig.add_subplot(grid[y,x])
+ 
+        for r,ref in enumerate(refs.split(',')):
+
+            tf = beam_data_files_func(ref, spw)
+            logger.info('Reading file: {0} .'.format(tf))
+
+            fth5 = h5py.File(tf, 'r')
+            ht = fth5.attrs
+            beams = list(fth5.keys())
+
+            # Load the central beam data.
+            logger.info('Loading data, sigma and flag.')
+            dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data').value, dtype=np.complex64)
+            st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma').value, dtype=np.complex64)
+            ft = np.array(fth5['/{0}/FLAG'.format(beams[0])].get('flag').value, dtype=np.bool)
+
+            # Apply flags to the data.
+            dt = np.ma.masked_where(ft, dt)
+            st = np.ma.masked_where(ft, st)
+
+            # Load frequency axis.
+            tgt_freq = np.array([fth5['/{0}/FREQ'.format(b)].get('freq').value for b in beams])
+
+            # Compute the argument of the visibilities.
+            phase = np.angle(dt[:,0,0])
+
+            if r == 0:
+                ax.set_title('{0:.2f} MHz'.format(np.mean(tgt_freq)*1e-6))
+
+            if s == 0:
+
+                ax.plot(phase, label='{0}'.format(ref))
+
+            else:
+
+                ax.plot(phase)
+
+            ax.set_ylim(-np.pi, np.pi)
+
+            ax.minorticks_on()
+            ax.tick_params('both', direction='in', which='both',
+                           bottom=True, top=True, left=True, right=True)
+
+            if x > 0:
+                ax.yaxis.set_ticklabels([])
+
+            if y < ny - 1:
+                ax.xaxis.set_ticklabels([])
+
+        if s == 0:
+            ax.legend(loc=0, fancybox=True)
+
+    #fig.tight_layout()
+    plt.savefig(outplot, bbox_inches='tight')
+    plt.close()
+
+    logger.info('Finished plotting.')
 
 def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='', 
                 steps=['amplitude', 
@@ -27,6 +121,8 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
                 map_diameter_m=4000.0, ):
     """
     """
+
+    logger = logging.getLogger(__name__)
 
     # Load solutions.
     sols = pickle.load(open(solutions_file, "rb"))
@@ -58,7 +154,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
         
         if 'amplitude' in steps:
             
-            print('Plotting amplitude sols.')
+            logger.info('Plotting amplitude sols.')
             
             amp_max = 0
             amp_min = 0
@@ -125,7 +221,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
         
         if 'phase' in steps:
             
-            print('Plotting phase sols.')
+            logger.info('Plotting phase sols.')
             
             fig = plt.figure(frameon=False, dpi=150, figsize=(6,6))
             grid = plt.GridSpec(nx, ny, wspace=0.1, hspace=0.3)
@@ -179,7 +275,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
             
         if 'phase_unwrapped' in steps:
             
-            print('Plotting phase unwrapped sols.')
+            logger.info('Plotting phase unwrapped sols.')
             
             fig = plt.figure(frameon=False, dpi=150, figsize=(6,6))
             grid = plt.GridSpec(nx, ny, wspace=0.1, hspace=0.3)
@@ -233,7 +329,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
         
         if 'phase_referenced' in steps:
             
-            print('Plotting phase referenced sols.')
+            logger.info('Plotting phase referenced sols.')
             
             fig = plt.figure(frameon=False, dpi=150, figsize=(6,6))
             grid = plt.GridSpec(nx, ny, wspace=0.1, hspace=0.3)
@@ -290,7 +386,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
             
         if 'delay' in steps:
             
-            print('Plotting delays.')
+            logger.info('Plotting delays.')
             
             tau_max = 0
             tau_min = 0
@@ -357,7 +453,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
             
         if 'delay0' in steps:
             
-            print('Plotting 0 Hz phase offsets.')
+            logger.info('Plotting 0 Hz phase offsets.')
             
             tau0_max = 0
             tau0_min = 0
@@ -437,7 +533,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
 
     if 'beam_observed' in steps:
         
-        print('Plotting observed beam.')
+        logger.info('Plotting observed beam.')
         
         # Plot the observed beam.
         
@@ -483,7 +579,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
         
     if 'beam_model' in steps:
         # Plot the observed beam.
-        print('Plotting modeled beam.')
+        logger.info('Plotting modeled beam.')
         
         fig = plt.figure(frameon=False, dpi=150, figsize=(6,6))
         #grid = plt.GridSpec(nx_b, ny_b, wspace=0.1, hspace=0.3)
@@ -529,7 +625,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
         
     if 'beam_model_fit' in steps:
         # Plot the observed beam.
-        print('Plotting modeled beam from fits to phase solutions.')
+        logger.info('Plotting modeled beam from fits to phase solutions.')
         
         fig = plt.figure(frameon=False, dpi=150, figsize=(6,6))
         #grid = plt.GridSpec(nx_b, ny_b, wspace=0.1, hspace=0.3)
@@ -573,7 +669,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
         
     if 'beam_residuals' in steps:
         # Plot observed beam minus modeled beam.
-        print('Plotting observed beam residuals.')
+        logger.info('Plotting observed beam residuals.')
         
         fig = plt.figure(frameon=False, dpi=150, figsize=(6,6))
         #grid = plt.GridSpec(nx_b, ny_b, wspace=0.1, hspace=0.3)
@@ -617,7 +713,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
         
     if 'beam_residuals_fit' in steps:
         # Plot observed beam minus modeled beam.
-        print('Plotting observed beam residuals using fits to the phases.')
+        logger.info('Plotting observed beam residuals using fits to the phases.')
         
         fig = plt.figure(frameon=False, dpi=150, figsize=(6,6))
         #grid = plt.GridSpec(nx_b, ny_b, wspace=0.1, hspace=0.3)
@@ -661,7 +757,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
         
     if 'beam_dft' in steps:
         # Plot the discrete Fourier transform of the observed beam.
-        print('Plotting observed beam DFT.')
+        logger.info('Plotting observed beam DFT.')
         
         fig = plt.figure(frameon=False, dpi=150, figsize=(6,6))
         #grid = plt.GridSpec(nx_b, ny_b, wspace=0.1, hspace=0.3)
@@ -719,7 +815,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
         
     if 'residuals_dft' in steps:
         # Plot the discrete Fourier transform of the observed beam minus modeled beam.
-        print('Plotting DFT of the residuals.')
+        logger.info('Plotting DFT of the residuals.')
         
         fig = plt.figure(frameon=False, dpi=150, figsize=(6,6))
         #grid = plt.GridSpec(nx_b, ny_b, wspace=0.1, hspace=0.3)
@@ -785,7 +881,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
         
     if 'residuals_fit_dft' in steps:
         # Plot the discrete Fourier transform of the observed beam minus modeled beam.
-        print('Plotting DFT of the residuals using the fits to the phases.')
+        logger.info('Plotting DFT of the residuals using the fits to the phases.')
         
         fig = plt.figure(frameon=False, dpi=150, figsize=(6,6))
         #grid = plt.GridSpec(nx_b, ny_b, wspace=0.1, hspace=0.3)
@@ -842,7 +938,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
         
     if 'phase_fit' in steps:
         
-        print('Plotting fits to the phases.')
+        logger.info('Plotting fits to the phases.')
             
         fig = plt.figure(frameon=False, dpi=150, figsize=(6,6))
         grid = plt.GridSpec(nx, ny, wspace=0.1, hspace=0.3)
@@ -897,3 +993,5 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
     # End of beam related plots.
     
     pdfdoc.close()
+
+    logger.info('Done plotting {0}'.format(output))
