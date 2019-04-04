@@ -137,40 +137,42 @@ def main(files, out, phase_ref_station, degree):
 
             phase_sol_err = np.sqrt(np.power(np.deg2rad(sols[station]['ph_err']), 2.) + np.power(phase_ref_err, 2.))
 
-            for t in range(sols[station]['ph'].shape[0]):
-                for r in range(len(urefss)):
+            if station != phase_ref_station:
 
-                    if not npfit:
-                        mod = PolynomialModel(degree)
+                for t in range(sols[station]['ph'].shape[0]):
+                    for r in range(len(urefss)):
 
-                        # Fit a polynomial with a phase offset.
-                        params = mod.make_params()
-                        params = mod.guess(phase_sol[t,r], x=sols[station]['freq'])
-                        fit = mod.fit(phase_sol[t,r][1:-1], x=sols[station]['freq'][1:-1], 
-                                      params=params)#, weights=np.power(phase_sol_err[t,r], -2.))
+                        if not npfit:
+                            mod = PolynomialModel(degree)
 
-                        delay[t,r] = fit.params['c1'].value/(2.*np.pi)
-                        delay0[t,r] = fit.params['c0'].value
-                        delay_err[t,r] = fit.params['c1'].stderr/(2.*np.pi)
-                        delay0_err[t,r] = fit.params['c0'].stderr
-                        delay_fit[t,r] = fit.eval(x=sols[station]['freq'])
-
-                        # Fit a polynomial with a fixed phase offset of zero.
-                        if station != phase_ref_station:
-                            params['c0'].set(value=0, vary=False)
+                            # Fit a polynomial with a phase offset.
+                            params = mod.make_params()
+                            params = mod.guess(phase_sol[t,r], x=sols[station]['freq'])
                             fit = mod.fit(phase_sol[t,r][1:-1], x=sols[station]['freq'][1:-1], 
                                           params=params)#, weights=np.power(phase_sol_err[t,r], -2.))
-                            delay_fix[t,r] = fit.params['c1'].value/(2.*np.pi)
-                            delay0_fix[t,r] = fit.params['c0'].value
-                            delay_err_fix[t,r] = fit.params['c1'].stderr/(2.*np.pi)
-                            delay0_err_fix[t,r] = fit.params['c0'].stderr
-                            delay_fit_fix[t,r] = fit.eval(x=sols[station]['freq'])
-                        else:
-                            delay_fix[t,r] = 0
-                            delay0_fix[t,r] = 0
-                            delay_err_fix[t,r] = 0
-                            delay0_err_fix[t,r] = 0
-                            delay_fit_fix[t,r] = [0]*len(sols[station]['freq'])
+
+                            delay[t,r] = fit.params['c1'].value/(2.*np.pi)
+                            delay0[t,r] = fit.params['c0'].value
+                            delay_err[t,r] = fit.params['c1'].stderr/(2.*np.pi)
+                            delay0_err[t,r] = fit.params['c0'].stderr
+                            delay_fit[t,r] = fit.eval(x=sols[station]['freq'])
+
+                            # Fit a polynomial with a fixed phase offset of zero.
+                            if station != phase_ref_station:
+                                params['c0'].set(value=0, vary=False)
+                                fit = mod.fit(phase_sol[t,r][1:-1], x=sols[station]['freq'][1:-1], 
+                                              params=params)#, weights=np.power(phase_sol_err[t,r], -2.))
+                                delay_fix[t,r] = fit.params['c1'].value/(2.*np.pi)
+                                delay0_fix[t,r] = fit.params['c0'].value
+                                delay_err_fix[t,r] = fit.params['c1'].stderr/(2.*np.pi)
+                                delay0_err_fix[t,r] = fit.params['c0'].stderr
+                                delay_fit_fix[t,r] = fit.eval(x=sols[station]['freq'])
+                            else:
+                                delay_fix[t,r] = 0
+                                delay0_fix[t,r] = 0
+                                delay_err_fix[t,r] = 0
+                                delay0_err_fix[t,r] = 0
+                                delay_fit_fix[t,r] = [0]*len(sols[station]['freq'])
 
             sols[station]['tau'] = delay    # Time delay with non-zero phase offset.
             sols[station]['tau0'] = delay0
