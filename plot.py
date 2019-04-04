@@ -7,6 +7,7 @@ import pylab as plt
 
 from matplotlib.backends.backend_pdf import PdfPages
 
+from taholog import misc
 from taholog import sols_to_mods as s2m
 from holog.fourierimaging import dft2_fast
 
@@ -117,7 +118,8 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
                        'beam_dft',
                        'residuals_dft',
                        'residuals_fit_dft',
-                       'phase_fit'],
+                       'phase_fit',
+                       'plot_sols'],
                 map_diameter_m=4000.0, ):
     """
     """
@@ -136,10 +138,12 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
         antenna_type = 'LBA'
         ears = [0]
         ear_step = 1
+        c_ = -1
     else:
         antenna_type = 'HBA'
         ears = [0,1]
         ear_step = 2
+        c_ = -2
 
     # Maximum 25 stations per page.
     nx = 5
@@ -958,40 +962,175 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
         ax.set_xlabel('Frequency (MHz)')
         ax.set_ylabel('Phase (rad)')
         
-        for i,ant in enumerate(ants[:nx*ny]):
-            
-            y = i//ny
-            x = i%nx
-                    
-            freq = sols[ant]['freq'][:]
-            
-            n_lines = sols[ant]['ph_ref'].shape[0]
-            color_idx = np.linspace(0, 1, n_lines)
-            
-            ax = fig.add_subplot(grid[y,x])
+        for ear in ears:
 
-            ax.set_title(ant)
-             
-            ax.plot(freq*1e-6, s2m_out['phs_sol_fit'][:,i], color='r', ls='-', marker='.')
-            ax.plot(freq*1e-6, np.deg2rad(s2m_out['phs_sol'][:,i]), color='g', ls=':', marker='.')
+            for i,ant in enumerate(ants[ear::ear_step]):
             
-            ax.minorticks_on()
-            ax.tick_params('both', direction='in', which='both',
-                            bottom=True, top=True, left=True, right=True)
-            
-            if x > 0:
-                ax.yaxis.set_ticklabels([])
-            
-            if y < ny - 1:
-                ax.xaxis.set_ticklabels([])
+                y = i//ny
+                x = i%nx
+                        
+                freq = sols[ant]['freq'][:]
                 
-            ax.set_ylim(-np.pi*2., np.pi*2.)
+                n_lines = sols[ant]['ph_ref'].shape[0]
+                color_idx = np.linspace(0, 1, n_lines)
+                
+                ax = fig.add_subplot(grid[y,x])
+                
+                ax.set_title(ant[:c_])
+                
+                if ear == 0: 
+                    l0, = ax.plot(freq*1e-6, s2m_out['phs_sol_fit'][:,ear+i*ear_step], color='g', ls='-', marker='.')
+                    l1, = ax.plot(freq*1e-6, np.deg2rad(s2m_out['phs_sol'][:,ear+i*ear_step]), color='g', ls=':', marker='.')
+                else:
+                    l2, = ax.plot(freq*1e-6, s2m_out['phs_sol_fit'][:,ear+i*ear_step], color='b', ls='-', marker='.')
+                    l3, = ax.plot(freq*1e-6, np.deg2rad(s2m_out['phs_sol'][:,ear+i*ear_step]), color='b', ls=':', marker='.')
+                
+                if x == 0 and y == 0:
+
+                    ax.legend([l0,l1], ['fit 0', 'obs 0'], loc=0, prop={'size': 6})
+
+                ax.minorticks_on()
+                ax.tick_params('both', direction='in', which='both',
+                                bottom=True, top=True, left=True, right=True)
+                
+                if x > 0:
+                    ax.yaxis.set_ticklabels([])
+                
+                if y < ny - 1:
+                    ax.xaxis.set_ticklabels([])
+                    
+                ax.set_ylim(-np.pi*2., np.pi*2.)
         
         pdfdoc.savefig(fig)
         plt.close(fig)
-    
+
     # End of beam related plots.
     
+    if 'plot_sols' in steps:
+        
+        logger.info('Plotting solutions: time delays and phase offsets.')        
+        fig = plot_sols(sols)
+        pdfdoc.savefig(fig)
+        plt.close(fig)
+ 
     pdfdoc.close()
 
     logger.info('Done plotting {0}'.format(output))
+
+def plot_sols(sols):
+    """
+    Plots the time delays and phase offsets for the stations.
+    """
+
+    n_col = 5
+    cols = 4
+
+    ants = sorted(sols.keys())                      # Stations.
+    nant = len(ants)                                 # Number of stations.
+    spws = len(sols[ants[0]]['freq'])               # Spectral windows.
+
+    tau = np.zeros((nant), dtype=np.float32)
+    dtau = np.zeros((nant), dtype=np.float32)
+    tau0 = np.zeros((nant), dtype=np.float32)
+    dtau0 = np.zeros((nant), dtype=np.float32)
+
+    for i,station in enumerate(ants):
+
+        tau[i] = sols[station]['tau'][0,0]*1e9  # ns
+        dtau[i] = sols[station]['tau_err'][0,0]*1e9
+        tau0[i] = sols[station]['tau0'][0,0]
+        dtau0[i] = sols[station]['tau0_err'][0,0]
+
+    tau_max = np.max(tau) + dtau[np.argmax(tau)]
+    tau_min = np.min(tau) - dtau[np.argmax(tau)]
+    tau0_max = np.max(tau0) + dtau0[np.argmax(tau0)]
+    tau0_min = np.min(tau0) - dtau0[np.argmax(tau0)]
+
+    # Catch invalid values.
+    tau = np.ma.masked_invalid(tau)
+    tau0 = np.ma.masked_invalid(tau0)
+    dtau = np.ma.masked_invalid(dtau)
+    dtau0 = np.ma.masked_invalid(dtau0)
+
+    # Axis to evaluate the Gaussians.
+    tau_axis = np.arange(tau_min, tau_max, 1)
+    tau0_axis = np.arange(tau0_min, tau0_max, 1)
+
+    # Build Gaussians.
+    tau_gau = np.zeros((len(ants), len(tau_axis)), dtype=np.float)
+    tau0_gau = np.zeros((len(ants), len(tau0_axis)), dtype=np.float)
+
+    for i,station in enumerate(ants):
+        
+        if station == sols[station]['ph_ref_station']:
+            continue
+         
+        tau_gau[i] = misc.gaussian(tau_axis, dtau.filled(tau.std())[i], tau[i], 1)/misc.gauss_area(1, dtau.filled(tau.std())[i])
+        tau0_gau[i] = misc.gaussian(tau0_axis, dtau0.filled(tau0.std())[i], tau0[i], 1)/misc.gauss_area(1, dtau0.filled(tau0.std())[i])
+
+    fig = plt.figure(frameon=False, dpi=150, figsize=(6,6))
+    
+    grid = plt.GridSpec(2, n_col, wspace=0.1, hspace=0.1)
+    
+    ax = fig.add_subplot(grid[0,0:cols])
+    
+    ax.errorbar(np.arange(nant), tau, yerr=dtau.filled(tau.std()), c='green',  fmt='.', ls='')
+    
+    ax.set_xticks(range(0,nant))
+    ax.set_xticklabels('')
+    
+    ax.set_ylabel(r'$\tau$ (ns)')
+    
+    
+    ax.minorticks_on()
+    ax.tick_params('both', direction='in', which='both',
+                    bottom=True, top=True, left=True, right=True)
+    ax.tick_params('both', direction='in', which='minor',
+                    bottom=False, top=False, left=True, right=True)
+    
+    ax.set_ylim(tau_min, tau_max)
+    
+    ax = fig.add_subplot(grid[1,0:cols])
+    
+    ax.errorbar(np.arange(nant), tau0, yerr=dtau0.filled(tau0.std()), c='green',  fmt='.', ls='')
+    
+    ax.set_xticks(range(0,nant))
+    x_labels = [ant if i%2==0 else '' for i,ant in enumerate(ants)]
+    ax.set_xticklabels(x_labels, rotation=45, size=5, ha='right')
+    
+    ax.set_ylabel(r'$\phi_{0}$ (rad)')
+    
+    ax.set_xlabel('Station')
+    
+    ax.minorticks_on()
+    ax.tick_params('both', direction='in', which='both',
+                    bottom=True, top=True, left=True, right=True)
+    ax.tick_params('both', direction='in', which='minor',
+                    bottom=False, top=False, left=True, right=True)
+    
+    ax.set_ylim(tau0_min, tau0_max)
+    
+    ax = fig.add_subplot(grid[0,cols])
+    
+    ax.plot(tau_gau.sum(axis=0)/(len(ants) - 1), tau_axis, c='green', ls='-')
+    
+    ax.minorticks_on()
+    ax.yaxis.tick_right()
+    ax.xaxis.tick_top()
+    ax.tick_params('both', direction='in', which='both',
+                    bottom=True, top=True, left=True, right=True)
+    
+    ax.set_ylim(tau_min, tau_max)
+    
+    ax = fig.add_subplot(grid[1,cols])
+    
+    ax.plot(tau0_gau.sum(axis=0)/(len(ants) - 1), tau0_axis, c='green', ls='-')
+    
+    ax.minorticks_on()
+    ax.yaxis.tick_right()
+    ax.tick_params('both', direction='in', which='both',
+                    bottom=True, top=True, left=True, right=True)
+    
+    ax.set_ylim(tau0_min, tau0_max)
+
+    return fig
