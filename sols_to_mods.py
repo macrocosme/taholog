@@ -1,4 +1,5 @@
 
+import logging
 import numpy as np
 import pylab as plt
 import scipy.constants as const
@@ -29,12 +30,14 @@ def make_model(spws, sols, uvhol_files_func, phase_ref_station=''):
     """
     """
 
+    logger = logging.getLogger(__name__)
+
     # Load the UVHOL files.
     hd = np.empty(len(spws), dtype=object)
 
     for i,spw in enumerate(spws):
         
-        print('Loading UVHOL file: {0}'.format(uvhol_files_func(spw)))
+        logger.info('Loading UVHOL file: {0}'.format(uvhol_files_func(spw)))
 
         hd[i] = holog.uvhol.read_uvhol_file(uvhol_files_func(spw))[0]
         
