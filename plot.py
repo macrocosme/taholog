@@ -1053,8 +1053,8 @@ def plot_sols(sols):
     dtau0 = np.ma.masked_invalid(dtau0)
 
     # Axis to evaluate the Gaussians.
-    tau_axis = np.arange(tau_min, tau_max, 1)
-    tau0_axis = np.arange(tau0_min, tau0_max, 1)
+    tau_axis = np.arange(tau_min, tau_max, 0.05)
+    tau0_axis = np.arange(tau0_min, tau0_max, 0.05)
 
     # Build Gaussians.
     tau_gau = np.zeros((len(ants), len(tau_axis)), dtype=np.float)
