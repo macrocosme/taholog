@@ -2,13 +2,9 @@
 
 import logging
 
-from taholog import ta_holog_proc as thp
-
 import sys
-sys.path.insert(0, '/home/salasp/python')
-sys.path.insert(0, '/home/salasp/python/antennafield-0.1')
-sys.path.insert(0, '/home/salasp/python/aoflagger')
-sys.path.insert(0, '/home/salasp/python/holog-0.2')
+
+from taholog import ta_holog_proc as thp
 
 if __name__ == '__main__':
     
