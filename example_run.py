@@ -20,6 +20,7 @@ if __name__ == '__main__':
     spws = 10
     logfile = 'taholog_{0}.log'.format(target_id)
     debug = False # Run steps without multiprocessing to get back all the error messages?
+    cs_str = 'cs' # In CEP4 the files are stored in a CS directory.
     """
     When using the multiprocessing module, I cannot log the error messages that take place in a child process.
     So, e.g., if a file is missing during the xcorr step, the script will not stop and it will continue without
@@ -104,7 +105,7 @@ if __name__ == '__main__':
     order_sols_degree = 1 # Polynomial order used when fitting the phase as a unction of frequency. Use 1.
 
     # plot_report step options.
-    plot_report_output = lambda pol: 'taholog_hba_report_{0}.pdf'.format(pol)
+    plot_report_output = lambda pol: 'taholog_report_{0}_{1}.pdf'.format(target_id, pol)
 
     # After each step a new file will be created.
     # For to_freq the new files will be in trunkdir/<SAS id>.
@@ -132,6 +133,7 @@ if __name__ == '__main__':
               'spws': spws,
               'logfile': logfile,
               'debug': debug,
+              'cs_str': cs_str,
               'steps': steps,
               'to_freq_num_chan': to_freq_num_chan,
               'to_freq_num_pol': to_freq_num_pol,

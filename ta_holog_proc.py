@@ -23,7 +23,9 @@ def run_pipeline(params):
     """
     Runs the steps required to process holography data (as recorded by COBALT).
     """
-    
+   
+    logger = logging.getLogger(__name__)
+ 
     # Set up logger.
     mp.log_to_stderr(logging.DEBUG)
     
@@ -33,8 +35,10 @@ def run_pipeline(params):
     # Unpack some kwargs.
     target_id = params['target_id']
     reference_ids = params['reference_ids']
+    trunk_dir = params['trunk_dir']
+    cs_str = params['cs_str']
+    debug = params['debug']
 
-    
     # Setup polarization mapping
     num_pol = params['to_freq_num_pol']
     mfp = '0,1,2,3'
@@ -50,7 +54,7 @@ def run_pipeline(params):
 
         # Start with the reference stations.
         for i,ref in enumerate(reference_ids.split(',')):
-            os.chdir(ref)
+            os.chdir('{0}/{1}'.format(ref, cs_str))
             input_file = '{0}_SAP000_B{1:03d}_S0_P000_bf.h5'.format(ref, 0)
             output_base = '{0}_SAP000_B{1:03d}_P000_bf'.format(ref, 0)
             to_freq.main(input_file, output_base, 
@@ -61,7 +65,7 @@ def run_pipeline(params):
             os.chdir(trunk_dir)
 
         # Now the target stations.
-        os.chdir(target_id)
+        os.chdir('{0}/{1}'.format(target_id, cs_str))
 
         if not debug:
             
@@ -97,12 +101,22 @@ def run_pipeline(params):
     os.chdir(trunk_dir)
     
     logger.info('Checking that there are enough output files.')
-    expected_to_freq_output = params['to_freq_beams']*params['spws']
-    
+    for ref in reference_ids.split(','): 
+        all_files = glob.glob('{0}/{1}/*spw*.h5'.format(ref, cs_str))
+        if len(all_files) != params['spws']:
+            logger.error('The number of channelized files is different than expected for reference: {0}'.format(ref))
+            logger.error('Will not continue.')
+            sys.exit(1)   
+    all_files = glob.glob('{0}/{1}/*spw*.h5'.format(target_id, cs_str))
+    if len(all_files) != params['target_beams']*params['spws']:
+        logger.error('The number of channelized files is different than expected for reference: {0}'.format(ref))
+        logger.error('Will not continue.')
+        sys.exit(1)
+ 
+    logger.info('The number of channelized files is as expected. Continuing...')
 
     xcorr_dt = params['xcorr_dt']
     
-
     if 'xcorr' in steps:
 
         # Make output directories if necessary.
@@ -112,8 +126,8 @@ def run_pipeline(params):
             for ref in reference_ids.split(','):
                 os.makedirs('{0}/{1}'.format(xcorr_output_dir, ref), exist_ok=True)
         
-        target = lambda ibm, ifn: '{0}/{0}_SAP000_B{1:03d}_P000_bf_spw{2}.h5'.format(target_id, ibm, ifn)
-        refers = lambda ref, ifn: '{0}/{0}_SAP000_B000_P000_bf_spw{1}.h5'.format(ref, ifn)
+        target = lambda ibm, ifn: '{0}/{3}/{0}_SAP000_B{1:03d}_P000_bf_spw{2}.h5'.format(target_id, ibm, ifn, cs_str)
+        refers = lambda ref, ifn: '{0}/{2}/{0}_SAP000_B000_P000_bf_spw{1}.h5'.format(ref, ifn, cs_str)
         output = lambda ref, ibm, ifn: '{0}/{1}/SAP000_B{2:03d}_P000_spw{3}_avg{4}.h5'.format(xcorr_output_dir, ref, ibm, ifn, xcorr_dt)
         rfi_output = lambda ref, ibm, ifn: '{0}/{1}/SAP000_B{2:03d}_P000_spw{3}_rfiflags.h5'.format(xcorr_output_dir, ref, ibm, ifn)
 
@@ -127,7 +141,6 @@ def run_pipeline(params):
         kwargs = {'target_time_res': xcorr_dt,
                   'rfiflag': params['xcorr_rfiflag'],
                   'edges': params['xcorr_edges'],
-                  'rfi_output': rfi,
                   'rfi_kwargs': rfi_kwargs}
 
         if not debug:
@@ -135,13 +148,15 @@ def run_pipeline(params):
             pool = mp.Pool(processes=params['xcorr_cpus'])
 
             for refid in reference_ids.split(','):
-                for spw in xcorr_spws:
-                    for ibm in xcorr_beams:
+                for spw in params['xcorr_spws']:
+                    for ibm in params['xcorr_beams']:
 
                         tgt = target(ibm, spw)
                         ref = refers(refid, spw)
                         out = output(refid, ibm, spw)
                         rfi = rfi_output(refid, ibm, spw)
+
+                        kwargs['rfi_output'] = rfi
 
                         pool.apply_async(xcorr.main, args=(tgt, ref, out), kwds=kwargs)
 
@@ -151,13 +166,15 @@ def run_pipeline(params):
         else:
 
             for refid in reference_ids.split(','):
-                for spw in xcorr_spws:
-                    for ibm in xcorr_beams:
+                for spw in params['xcorr_spws']:
+                    for ibm in params['xcorr_beams']:
 
                         tgt = target(ibm, spw)
                         ref = refers(refid, spw)
                         out = output(refid, ibm, spw)
                         rfi = rfi_output(refid, ibm, spw)
+
+                        kwargs['rfi_output'] = rfi
 
                         xcorr.main(tgt, ref, out, **kwargs)
 
@@ -384,7 +401,7 @@ def run_pipeline(params):
                     logger.info('Solving: {0} to {1}'.format(inp, out))
 
                     try:
-                        solve.uvhol(inp, out, weighted=params['solve_weighted'])
+                        solve.uvhol(inp, out, weighted=params['solve_weighted'], use_cov=False)
                     except (np.linalg.linalg.LinAlgError, ValueError):
                         logger.info("Could not solve: {0}".format(inp))
 
@@ -406,6 +423,6 @@ def run_pipeline(params):
             solutions_file =  '{0}_xcorr/avg{1}_cal_clip_avg{2}_{3}_sols.pickle'.format(target_id, xcorr_dt, average_t_dt, pol)
             uvhol_files_func = lambda spw: '{0}_xcorr/spw{1}_avg{2}_cal_clip_avg{3}_{4}_t0.uvhol'.format(target_id, spw, xcorr_dt, average_t_dt, pol)
             
-            plot.plot_report(plot_report_output(pol), solutions_file, uvhol_files_func, params['order_sols_phase_reference_station'])
+            plot.plot_report(params['plot_report_output'](pol), solutions_file, uvhol_files_func, params['order_sols_phase_reference_station'])
 
     logger.info('Done with steps: {0}'.format(steps))
