@@ -401,7 +401,7 @@ def run_pipeline(params):
                     logger.info('Solving: {0} to {1}'.format(inp, out))
 
                     try:
-                        solve.uvhol(inp, out, weighted=params['solve_weighted'], use_cov=False)
+                        solve.uvhol(inp, out, weighted=params['solve_weighted'])
                     except (np.linalg.linalg.LinAlgError, ValueError):
                         logger.info("Could not solve: {0}".format(inp))
 
