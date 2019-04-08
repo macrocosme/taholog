@@ -176,7 +176,7 @@ if __name__ == '__main__':
               'plot_report_output': plot_report_output}
 
     formatter = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    logging.basicConfig(filename=logfile, filemode='w', level=logging.DEBUG, format=formatter)
+    logging.basicConfig(filename=logfile, filemode='a', level=logging.DEBUG, format=formatter)
     logger = logging.getLogger(__name__)
     
     
