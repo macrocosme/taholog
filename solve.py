@@ -147,10 +147,6 @@ def uvhol(target, out, weighted=True):
     xs = pqr[:,0]
     ys = pqr[:,1]
 
-    cov_err = 0
-    if use_cov:
-        cov_err = covariance_matrix(hd[0], pqr)
-
     # Solve
     logger.info('Solving.')
     g, m = fit_lstsq_complex(hd[0], xs, ys, weighted=weighted)
