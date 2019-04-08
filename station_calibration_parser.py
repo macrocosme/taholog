@@ -63,7 +63,8 @@ def update_parset(solutions, old_parset, new_parset, subarray, filters):
             For the HBA_JOINED mode use the mean of the time delays between the two HBA fields.
             """
             elif desc_[_keys['SubArray']] == 'HBA_JOINED' and \
-                 desc_[_keys['Station']] + '0' in solutions['sols_hba_x'].keys():
+                 desc_[_keys['Station']] + '0' in solutions['sols_hba_x'].keys() and \
+                 desc_[_keys['SubArray']] in subarray and desc_[_keys['Filter']] in filters:
 
                 print(desc, desc_, val)
 
