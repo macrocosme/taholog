@@ -13,6 +13,8 @@ import antennafield
 
 from taholog import stations
 
+from astropy.utils import iers
+iers.conf.auto_max_age = None
 # Always try to download the most recent IERS tables.
 #from astropy.utils.data import download_file
 #from astropy.utils import iers
