@@ -20,11 +20,15 @@ def abs_clip_vis(target, output, threshold=2.):
 
     ht = fth5.attrs
     beams = list(fth5.keys())
-    dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data').value, dtype=np.complex64)
-    st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma').value, dtype=np.complex64)
-    ft = np.array(fth5['/{0}/FLAG'.format(beams[0])].get('flag').value)
+    # dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data').value, dtype=np.complex64)
+    # st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma').value, dtype=np.complex64)
+    # ft = np.array(fth5['/{0}/FLAG'.format(beams[0])].get('flag').value)
+    dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data'), dtype=np.complex64)
+    st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma'), dtype=np.complex64)
+    ft = np.array(fth5['/{0}/FLAG'.format(beams[0])].get('flag'))
 
-    freq = np.array([fth5['/{0}/FREQ'.format(b)].get('freq').value for b in beams])
+    # freq = np.array([fth5['/{0}/FREQ'.format(b)].get('freq').value for b in beams])
+    freq = np.array([fth5['/{0}/FREQ'.format(b)].get('freq') for b in beams])
 
     # Where are we looking at?
     beam_info = fth5['/{0}/POINTING'.format(beams[0])]
@@ -53,9 +57,12 @@ def save_hdf5(output, data, sigma, freq, beam_info, target_head):
     f0 = f.create_group('0')
 
     a = f0.create_group('POINTING')
-    a['beam_ref_radec'] = beam_info['beam_ref_radec'].value
-    a['beam_pos_radec'] = beam_info['beam_pos_radec'].value
-    a['beam_off_radec'] = beam_info['beam_off_radec'].value
+    a.create_dataset('beam_ref_radec', data=beam_info['beam_ref_radec'])
+    a.create_dataset('beam_pos_radec', data=beam_info['beam_pos_radec'])
+    a.create_dataset('beam_off_radec', data=beam_info['beam_off_radec'])
+    # a['beam_ref_radec'] = beam_info['beam_ref_radec'].value
+    # a['beam_pos_radec'] = beam_info['beam_pos_radec'].value
+    # a['beam_off_radec'] = beam_info['beam_off_radec'].value
 
     b = f0.create_group('DATA')
     b['data'] = data.filled(np.nan)

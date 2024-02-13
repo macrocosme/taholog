@@ -9,7 +9,7 @@ import astropy.units as u
 
 from astropy.coordinates import SkyCoord
 
-import antennafield
+import taholog.antfield as antennafield
 
 from taholog import stations
 
@@ -117,7 +117,7 @@ def radec_to_lm(radec, mean_time):
     Converts the (RA,DEC) coordinates to (l,m).
 
     **Parameters**
-
+d
     radec: numpy.array
         Array of shape (N,2) with RA DEC coordinates in radians.
     mean_time: astropy.time.Time
@@ -129,11 +129,14 @@ def radec_to_lm(radec, mean_time):
     afddir = os.path.dirname(antennafield.__file__)
 
     # Load the array center: CS002.
-    center = antennafield.parse_antenna_field('{0}/../data/CS002-AntennaField.conf'.format(afddir)) # Same center for LBA and HBA.
+    # center = antennafield.parse_antenna_field('{0}/AntennaFields/CS002-AntennaField.conf'.format(afddir)) # Same center for LBA and HBA.
 
     # The coordinates should be rotated to the PQR coordinate system.
     # The rotation matrix is the same for both LBA and HBAs.
-    rotmat = stations.afield_rotation_matrix(center, 'LBA')
+    # rotmat = stations.afield_rotation_matrix(center, 'LBA')
+
+    center = antennafield.from_file('{0}/AntennaFields/CS002-AntennaField.conf'.format(afddir)) # Same center for LBA and HBA.
+    rotmat = np.array(center['ROTATION_MATRIX']['LBA'])
 
     mean_time.format = 'iso'
 

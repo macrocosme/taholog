@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 
+import re
 import sys
 import h5py
+import glob
 import logging
+import argparse
 import numpy as np
 
 from numpy.lib.scimath import sqrt as csqrt
@@ -40,8 +43,7 @@ def main(target, reference, output, target_time_res=0, rfiflag=False, edges=0.25
     fr = h5py.File(reference, 'r')
     hr = fr.attrs
     # Load reference data.
-    # dr = np.array([fr['/{0}/DATA'.format(b)].get('data').value for b in fr.keys()], dtype=np.complex64)
-    dr = np.array([fr['/{0}/DATA'.format(b)].get('data') for b in fr.keys()], dtype=np.complex64)
+    dr = np.array([fr['/{0}/DATA'.format(b)].get('data').value for b in fr.keys()], dtype=np.complex64)
 
     ntimes = dr.shape[1]
     nchans = dr.shape[3]
@@ -50,10 +52,8 @@ def main(target, reference, output, target_time_res=0, rfiflag=False, edges=0.25
     logger.info('Will keep channels between: {0}--{1}.'.format(ch0, chf))
 
     # Load frequency axes and compare.
-    # tgt_freq = np.array([ft['/{0}/FREQ'.format(b)].get('freq').value for b in fr.keys()])
-    # ref_freq = np.array([fr['/{0}/FREQ'.format(b)].get('freq').value for b in fr.keys()])
-    tgt_freq = np.array([ft['/{0}/FREQ'.format(b)].get('freq') for b in fr.keys()])
-    ref_freq = np.array([fr['/{0}/FREQ'.format(b)].get('freq') for b in fr.keys()])
+    tgt_freq = np.array([ft['/{0}/FREQ'.format(b)].get('freq').value for b in fr.keys()])
+    ref_freq = np.array([fr['/{0}/FREQ'.format(b)].get('freq').value for b in fr.keys()])
 
     if np.nansum(tgt_freq - ref_freq) != 0:
         logger.info('Target and reference station frequencies do not match.')
@@ -69,8 +69,7 @@ def main(target, reference, output, target_time_res=0, rfiflag=False, edges=0.25
     logger.info('Will cross-correlate the data.')
 
     # Load target data. Only one beam per file.
-    # dt = ft['/{0}/DATA'.format(beams[0])].get('data').value
-    dt = ft['/{0}/DATA'.format(beams[0])].get('data')
+    dt = ft['/{0}/DATA'.format(beams[0])].get('data').value
 
     # Cross-correlate: target voltage times complex conjugate of reference voltage.
     xcorr[:,:,0,0] = dt[:,0,ch0:chf]*np.conj(dr[0,:,0,ch0:chf])  # XX
@@ -257,50 +256,44 @@ def save_hdf5(output, data, sigma, freq, beam_info, target_head, reference_anten
     logger = logging.getLogger(__name__)
 
     # Create file.
-    # f = h5py.File(output, "w")
-    with h5py.File(output, "w") as f:
+    f = h5py.File(output, "w")
 
-        # Create groups where the data will be stored.
-        f0 = f.create_group('0')
+    # Create groups where the data will be stored.
+    f0 = f.create_group('0')
 
-        a = f0.create_group('POINTING')
-        # a['beam_ref_radec'] = beam_info['beam_ref_radec'].value
-        # a['beam_pos_radec'] = beam_info['beam_pos_radec'].value
-        # a['beam_off_radec'] = beam_info['beam_off_radec'].value
-        a.create_dataset('beam_ref_radec', data=beam_info['beam_ref_radec'])
-        a.create_dataset('beam_pos_radec', data=beam_info['beam_pos_radec'])
-        a.create_dataset('beam_off_radec', data=beam_info['beam_off_radec'])
+    a = f0.create_group('POINTING')
+    a['beam_ref_radec'] = beam_info['beam_ref_radec'].value
+    a['beam_pos_radec'] = beam_info['beam_pos_radec'].value
+    a['beam_off_radec'] = beam_info['beam_off_radec'].value
 
+    b = f0.create_group('DATA')
+    b['data'] = data.filled(np.nan)
 
-        b = f0.create_group('DATA')
-        b['data'] = data.filled(np.nan)
+    c = f0.create_group('SIGMA')
+    c['sigma'] = sigma.filled(np.nan)
 
-        c = f0.create_group('SIGMA')
-        c['sigma'] = sigma.filled(np.nan)
+    d = f0.create_group('FLAG')
+    d.create_dataset('flag', data=data.mask)
 
-        d = f0.create_group('FLAG')
-        d.create_dataset('flag', data=data.mask)
+    e = f0.create_group('FREQ')
+    e.create_dataset('freq', data=freq)
 
-        e = f0.create_group('FREQ')
-        e.create_dataset('freq', data=freq)
-
-        # Common attributes.
-        f.attrs['target_source_name'] = target_head['target_source_name']
-        f.attrs['frequency_hz'] = target_head['frequency_hz']
-        f.attrs['reference_antennas'] = reference_antenna
-        f.attrs['target_antennas'] = target_head['target_antennas']
-        f.attrs['mjd_start'] = target_head['mjd_start']
-        f.attrs['mjd_end'] = target_head['mjd_end']
-        f.attrs['utc_start'] = target_head['utc_start']
-        f.attrs['utc_end'] = target_head['utc_end']
-        f.attrs['time_samples'] = target_head['time_samples']
-        f.attrs['integration_time_sample'] = time_resolution
-        try:
-            f.attrs['sample_rate_hz'] = target_head['sample_rate_hz']
-        except KeyError:
-            logger.warning('header keyword: "sample_rate_hz" not present.')
-            f.attrs['sample_rate_hz'] = np.nan
+    # Common attributes.
+    f.attrs['target_source_name'] = target_head['target_source_name']
+    f.attrs['frequency_hz'] = target_head['frequency_hz']
+    f.attrs['reference_antennas'] = reference_antenna
+    f.attrs['target_antennas'] = target_head['target_antennas']
+    f.attrs['mjd_start'] = target_head['mjd_start']
+    f.attrs['mjd_end'] = target_head['mjd_end']
+    f.attrs['utc_start'] = target_head['utc_start']
+    f.attrs['utc_end'] = target_head['utc_end']
+    f.attrs['time_samples'] = target_head['time_samples']
+    f.attrs['integration_time_sample'] = time_resolution
+    try:
+        f.attrs['sample_rate_hz'] = target_head['sample_rate_hz']
+    except KeyError:
+        logger.warning('header keyword: "sample_rate_hz" not present.')
+        f.attrs['sample_rate_hz'] = np.nan
 
     # Close file. 
-    # f.close()
-
+    f.close()

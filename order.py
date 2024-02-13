@@ -154,8 +154,10 @@ def main(files, out, phase_ref_station, degree):
                             fit = mod.fit(phase_sol[t,r][1:-1], x=sols[station]['freq'][1:-1], 
                                           params=params)#, weights=np.power(phase_sol_err[t,r], -2.))
 
-                            delay[t,r] = fit.params['c1'].value/(2.*np.pi)
-                            delay0[t,r] = fit.params['c0'].value
+                            # delay[t,r] = fit.params['c1'].value/(2.*np.pi)
+                            # delay0[t,r] = fit.params['c0'].value
+                            delay[t,r] = fit.params['c1']/(2.*np.pi)
+                            delay0[t,r] = fit.params['c0']
                             delay_err[t,r] = fit.params['c1'].stderr/(2.*np.pi)
                             delay0_err[t,r] = fit.params['c0'].stderr
                             delay_fit[t,r] = fit.eval(x=sols[station]['freq'])
@@ -165,8 +167,10 @@ def main(files, out, phase_ref_station, degree):
                                 params['c0'].set(value=0, vary=False)
                                 fit = mod.fit(phase_sol[t,r][1:-1], x=sols[station]['freq'][1:-1], 
                                               params=params)#, weights=np.power(phase_sol_err[t,r], -2.))
-                                delay_fix[t,r] = fit.params['c1'].value/(2.*np.pi)
-                                delay0_fix[t,r] = fit.params['c0'].value
+                                # delay_fix[t,r] = fit.params['c1'].value/(2.*np.pi)
+                                # delay0_fix[t,r] = fit.params['c0'].value
+                                delay[t,r] = fit.params['c1']/(2.*np.pi)
+                                delay0[t,r] = fit.params['c0']
                                 delay_err_fix[t,r] = fit.params['c1'].stderr/(2.*np.pi)
                                 delay0_err_fix[t,r] = fit.params['c0'].stderr
                                 delay_fit_fix[t,r] = fit.eval(x=sols[station]['freq'])

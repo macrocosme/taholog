@@ -25,8 +25,10 @@ def main(cal_sols, target, output):
     sols_keys = list(sols_file.keys())
 
     # Load the calibration solutions.
-    sd = sols_file['/{0}/CAL'.format(sols_keys[0])].get('cal').value
-    ss = sols_file['/{0}/SIGMACAL'.format(sols_keys[0])].get('sigmacal').value
+    # sd = sols_file['/{0}/CAL'.format(sols_keys[0])].get('cal').value
+    # ss = sols_file['/{0}/SIGMACAL'.format(sols_keys[0])].get('sigmacal').value
+    sd = sols_file['/{0}/CAL'.format(sols_keys[0])].get('cal')
+    ss = sols_file['/{0}/SIGMACAL'.format(sols_keys[0])].get('sigmacal')
 
     # Read the file to be calibrated.
     logger.info('Reading file with data: {0} .'.format(target))
@@ -35,19 +37,24 @@ def main(cal_sols, target, output):
     beams = list(fth5.keys())
 
     # Load the data to be calibrated,
-    dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data').value, dtype=np.complex64)
+    # dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data').value, dtype=np.complex64)
+    dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data'), dtype=np.complex64)
     # its error
-    st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma').value, dtype=np.complex64)
+    # st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma').value, dtype=np.complex64)
+    st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma'), dtype=np.complex64)
     # and its flags.
-    ft = np.array(fth5['/{0}/FLAG'.format(beams[0])].get('flag').value, dtype=np.bool)
+    # ft = np.array(fth5['/{0}/FLAG'.format(beams[0])].get('flag').value, dtype=np.bool)
+    ft = np.array(fth5['/{0}/FLAG'.format(beams[0])].get('flag'), dtype=np.bool)
 
     # Apply flags.
     dt = np.ma.masked_where(ft, dt)
     st = np.ma.masked_where(ft, st)
 
     # Load frequency axes and compare.
-    tgt_freq = np.array([fth5['/{0}/FREQ'.format(b)].get('freq').value for b in beams])
-    sol_freq = np.array([sols_file['/{0}/FREQ'.format(b)].get('freq').value for b in sols_keys])
+    # tgt_freq = np.array([fth5['/{0}/FREQ'.format(b)].get('freq').value for b in beams])
+    # sol_freq = np.array([sols_file['/{0}/FREQ'.format(b)].get('freq').value for b in sols_keys])
+    tgt_freq = np.array([fth5['/{0}/FREQ'.format(b)].get('freq') for b in beams])
+    sol_freq = np.array([sols_file['/{0}/FREQ'.format(b)].get('freq') for b in sols_keys])
 
     if np.nansum(tgt_freq - sol_freq) != 0:
         logger.info('Target and calibration solution frequencies do not match.')
@@ -115,9 +122,12 @@ def save_hdf5(output, data, sigma, freq, beam_info, target_head):
     f0 = f.create_group('0')
 
     a = f0.create_group('POINTING')
-    a['beam_ref_radec'] = beam_info['beam_ref_radec'].value
-    a['beam_pos_radec'] = beam_info['beam_pos_radec'].value
-    a['beam_off_radec'] = beam_info['beam_off_radec'].value
+    a.create_dataset('beam_ref_radec', data=beam_info['beam_ref_radec'])
+    a.create_dataset('beam_pos_radec', data=beam_info['beam_pos_radec'])
+    a.create_dataset('beam_off_radec', data=beam_info['beam_off_radec'])
+    # a['beam_ref_radec'] = beam_info['beam_ref_radec'].value
+    # a['beam_pos_radec'] = beam_info['beam_pos_radec'].value
+    # a['beam_off_radec'] = beam_info['beam_off_radec'].value
 
     b = f0.create_group('DATA')
     b['data'] = data.filled(np.nan)

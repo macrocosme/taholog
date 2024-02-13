@@ -1,5 +1,6 @@
 
 import re
+import sys
 import h5py
 import logging
 import numpy as np
@@ -274,4 +275,3 @@ def main(input_file, output_base, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,
         logger.info('Processed one spectral window in: {0}'.format(datetime.now() - ctime))
 
     logger.info('Processed file {0} in {1}'.format(input_file, datetime.now() - start_time))
-

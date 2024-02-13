@@ -8,6 +8,11 @@ import numpy as np
 from datetime import datetime
 
 from astropy import time
+from astropy import units as u
+from astropy.coordinates import Angle
+
+import antennafield
+from taholog import stations
 from taholog import coordinates
 
 def make_uvhol_header(ref_antennas, tgt_antennas, stokes, frequency_hz, if_num, t_start, t_end, numpoints):
@@ -17,13 +22,9 @@ def make_uvhol_header(ref_antennas, tgt_antennas, stokes, frequency_hz, if_num, 
     try:
         ref_antennas = [rfa.decode("utf-8") for rfa in ref_antennas]
         tgt_antennas = [tga.decode("utf-8") for tga in tgt_antennas]
-        # ref_antennas = [rfa for rfa in ref_antennas]
-        # tgt_antennas = [tga for tga in tgt_antennas]
     except AttributeError:
         pass
 
-    print ('ref_antennas', ref_antennas)
-    print ('tgt_antennas', tgt_antennas)
     head = "#! RefAnt = {0} Antenna = {1} Stokes = {2} Freq = {3}\n"\
                        "#! MINsamp = 3 Npoint = 5\n"\
                        "#! IFnumber = {4} Channel = 1\n"\
@@ -63,8 +64,7 @@ def main(file_list, output_base, correlations='XX,XY,YX,YY'):
 
     # Load the central beam data.
     logger.info('Loading data from first file to generate array.')
-    # dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data').value, dtype=np.complex64)
-    dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data'), dtype=np.complex64)
+    dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data').value, dtype=np.complex64)
 
     ntimes = dt.shape[0]
 
@@ -76,21 +76,16 @@ def main(file_list, output_base, correlations='XX,XY,YX,YY'):
     for i,filename in enumerate(file_list):
 
         fth5 = h5py.File(filename, 'r')
-        # dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data').value, dtype=np.complex64)
-        # st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma').value, dtype=np.complex64)
-        dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data'), dtype=np.complex64)
-        st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma'), dtype=np.complex64)
+        dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data').value, dtype=np.complex64)
+        st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma').value, dtype=np.complex64)
         xcorr[i] = dt
         sigma[i] = st
 
-        # radec[i] = np.deg2rad(fth5['/{0}/POINTING'.format(beams[0])]['beam_pos_radec'].value)
-        radec[i] = np.deg2rad(fth5['/{0}/POINTING'.format(beams[0])]['beam_pos_radec'])
+        radec[i] = np.deg2rad(fth5['/{0}/POINTING'.format(beams[0])]['beam_pos_radec'].value)
 
     logger.info('Making time vector.')
-    # start_t = time.Time(ht['utc_start'].decode('utf-8'), scale='utc')
-    # end_t = time.Time(ht['utc_end'].decode('utf-8'), scale='utc')
-    start_t = time.Time(ht['utc_start'], scale='utc')
-    end_t = time.Time(ht['utc_end'], scale='utc')
+    start_t = time.Time(ht['utc_start'].decode('utf-8'), scale='utc')
+    end_t = time.Time(ht['utc_end'].decode('utf-8'), scale='utc')
     obs_t = (end_t - start_t)
     int_t = obs_t/ntimes
     mean_time = start_t + obs_t/2.
@@ -127,5 +122,4 @@ def main(file_list, output_base, correlations='XX,XY,YX,YY'):
                            header=header, footer=footer, comments='')
 
     logger.info('Step run time: {0}'.format(datetime.now() - start_time))
-
 

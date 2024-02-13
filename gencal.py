@@ -28,16 +28,20 @@ def main(target, output, smooth=False, cond_threshold=5.):
 
     # Load the central beam data.
     logger.info('Loading data.')
-    dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data').value, dtype=np.complex64)
-    st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma').value, dtype=np.complex64)
-    ft = np.array(fth5['/{0}/FLAG'.format(beams[0])].get('flag').value, dtype=np.bool)
+    # dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data').value, dtype=np.complex64)
+    # st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma').value, dtype=np.complex64)
+    # ft = np.array(fth5['/{0}/FLAG'.format(beams[0])].get('flag').value, dtype=np.bool)
+    dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data'), dtype=np.complex64)
+    st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma'), dtype=np.complex64)
+    ft = np.array(fth5['/{0}/FLAG'.format(beams[0])].get('flag'), dtype=np.bool)
 
     # Apply flags to the data.
     dt = np.ma.masked_where(ft, dt)
     st = np.ma.masked_where(ft, st)
 
     # Load frequency axis.
-    tgt_freq = np.array([fth5['/{0}/FREQ'.format(b)].get('freq').value for b in beams])
+    # tgt_freq = np.array([fth5['/{0}/FREQ'.format(b)].get('freq').value for b in beams])
+    tgt_freq = np.array([fth5['/{0}/FREQ'.format(b)].get('freq') for b in beams])
 
     # Obtain calibration.
     logger.info('Generating calibration.')

@@ -57,16 +57,20 @@ def plot_phase_beam(beam_data_files_func, outplot, spws, refs):
 
             # Load the central beam data.
             logger.info('Loading data, sigma and flag.')
-            dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data').value, dtype=np.complex64)
-            st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma').value, dtype=np.complex64)
-            ft = np.array(fth5['/{0}/FLAG'.format(beams[0])].get('flag').value, dtype=np.bool)
+            # dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data').value, dtype=np.complex64)
+            # st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma').value, dtype=np.complex64)
+            # ft = np.array(fth5['/{0}/FLAG'.format(beams[0])].get('flag').value, dtype=np.bool)
+            dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data'), dtype=np.complex64)
+            st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma'), dtype=np.complex64)
+            ft = np.array(fth5['/{0}/FLAG'.format(beams[0])].get('flag'), dtype=np.bool)
 
             # Apply flags to the data.
             dt = np.ma.masked_where(ft, dt)
             st = np.ma.masked_where(ft, st)
 
             # Load frequency axis.
-            tgt_freq = np.array([fth5['/{0}/FREQ'.format(b)].get('freq').value for b in beams])
+            # tgt_freq = np.array([fth5['/{0}/FREQ'.format(b)].get('freq').value for b in beams])
+            tgt_freq = np.array([fth5['/{0}/FREQ'.format(b)].get('freq') for b in beams])
 
             # Compute the argument of the visibilities.
             phase = np.angle(dt[:,0,0])
@@ -479,7 +483,6 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
             # Set common labels
             ax.set_xlabel('Time slot')
             ax.set_ylabel('0 Hz phase offset (rad)')
-            
             for i,ant in enumerate(ants[ear::ear_step]):
                 
                 y = i//ny
@@ -560,8 +563,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
         ax.set_ylabel('m (mrad)')
         
         for i,spw in enumerate(spws[:-1]):
-                                
-            ax = fig.add_subplot('33{0}'.format(i+1))
+            ax = fig.add_subplot(int('33{0}'.format(i+1)))
 
             ax.set_title('{0:.2f} MHz'.format(sols[ants[0]]['freq'][i]*1e-6))
             
@@ -605,7 +607,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
         
         for i,spw in enumerate(spws[:-1]):
                                 
-            ax = fig.add_subplot('33{0}'.format(i+1))
+            ax = fig.add_subplot(int('33{0}'.format(i+1)))
 
             ax.set_title('{0:.2f} MHz'.format(sols[ants[0]]['freq'][i]*1e-6))
             
@@ -651,7 +653,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
         
         for i,spw in enumerate(spws[:-1]):
                                 
-            ax = fig.add_subplot('33{0}'.format(i+1))
+            ax = fig.add_subplot(int('33{0}'.format(i+1)))
 
             ax.set_title('{0:.2f} MHz'.format(sols[ants[0]]['freq'][i]*1e-6))
             
@@ -695,7 +697,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
         
         for i,spw in enumerate(spws[:-1]):
                                 
-            ax = fig.add_subplot('33{0}'.format(i+1))
+            ax = fig.add_subplot(int('33{0}'.format(i+1)))
 
             ax.set_title('{0:.2f} MHz'.format(sols[ants[0]]['freq'][i]*1e-6))
             
@@ -739,7 +741,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
         
         for i,spw in enumerate(spws[:-1]):
                                 
-            ax = fig.add_subplot('33{0}'.format(i+1))
+            ax = fig.add_subplot(int('33{0}'.format(i+1)))
 
             ax.set_title('{0:.2f} MHz'.format(sols[ants[0]]['freq'][i]*1e-6))
             
@@ -785,7 +787,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
             
             hd_ai = s2m_out['holog_data'][i].complex_aperture_dft(map_diameter_m=map_diameter_m, over_sample_factor=5, fourier_sign=-1)
                                 
-            ax = fig.add_subplot('33{0}'.format(i+1))
+            ax = fig.add_subplot(int('33{0}'.format(i+1)))
             
             grid_ = s2m_out['holog_data'][i].ft_grid(map_diameter_m, 5, -1)
             res_hd_dft = dft2_fast(grid_, v=s2m_out['holog_data'][i].vis)
@@ -845,7 +847,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
             mod_hd_ai = s2m_out['model_hologdata'][i].complex_aperture_dft(map_diameter_m=map_diameter_m, over_sample_factor=5, fourier_sign=-1)
             res_hd_ai = s2m_out['residual_hologdata'][i].complex_aperture_dft(map_diameter_m=map_diameter_m, over_sample_factor=5, fourier_sign=-1)
             
-            ax = fig.add_subplot('33{0}'.format(i+1))
+            ax = fig.add_subplot(int('33{0}'.format(i+1)))
             
             grid_ = s2m_out['residual_hologdata'][i].ft_grid(map_diameter_m, 5, -1)
             res_hd_dft = dft2_fast(grid_, v=s2m_out['residual_hologdata'][i].vis)
@@ -909,7 +911,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
             
             res_hd_ai = s2m_out['residual_fit_hologdata'][i].complex_aperture_dft(map_diameter_m=map_diameter_m, over_sample_factor=5, fourier_sign=-1)
             
-            ax = fig.add_subplot('33{0}'.format(i+1))
+            ax = fig.add_subplot(int('33{0}'.format(i+1)))
             
             grid_ = s2m_out['residual_hologdata'][i].ft_grid(map_diameter_m, 5, -1)
             res_hd_dft = dft2_fast(grid_, v=s2m_out['residual_fit_hologdata'][i].vis)

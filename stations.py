@@ -4,7 +4,7 @@ r'''
 import os
 import numpy as np
 
-import antennafield
+import taholog.antfield as antennafield
 
 def afield_rotation_matrix(antenna_field_list, field_name):
     r'''
@@ -34,7 +34,7 @@ def afield_rotation_matrix(antenna_field_list, field_name):
     '''
     return [item for item in antenna_field_list
             if item.field_name == field_name and \
-            item.__class__.__name__ == 'RotationMatrix'][0].rotation_matrix
+            item.__class__.__name__ == 'RotationMatrix'.upper()][0].rotation_matrix
 
 def afield_phase_centre_itrs(antenna_field_list, field_name):
     r'''
@@ -80,8 +80,10 @@ def station_offsets_pqr(station_list):
     afc = np.zeros((nant, 3))
 
     # Load the array center: CS002.
-    center = antennafield.parse_antenna_field('{0}/../data/CS002-AntennaField.conf'.format(afddir)) # Same center for LBA and HBA.
-    matrix = afield_rotation_matrix(center, 'LBA') # Same rotation for HBA and LBA.
+    # center = antennafield.parse_antenna_field('{0}/AntennaFields/CS002-AntennaField.conf'.format(afddir)) # Same center for LBA and HBA.
+    # matrix = afield_rotation_matrix(center, 'LBA') # Same rotation for HBA and LBA.
+    center = antennafield.from_file('{0}/AntennaFields/CS002-AntennaField.conf'.format(afddir)) # Same center for LBA and HBA.
+    matrix = np.array(center['ROTATION_MATRIX']['LBA'])
 
     # Check if it is an LBA or HBA data set.
     # This will need another condition if remote or international stations are used.
@@ -94,13 +96,20 @@ def station_offsets_pqr(station_list):
         afc1 = np.zeros((nant//2, 3))
 
         for i,s in enumerate(antennas[::2]):
-            teo[i] = antennafield.parse_antenna_field('{0}/../data/{1}-AntennaField.conf'.format(afddir, s[:_c]))
-            afc[i] = afield_phase_centre_itrs(teo[i], 'HBA')
-            afc0[i] = afield_phase_centre_itrs(teo[i], 'HBA0')
-            afc1[i] = afield_phase_centre_itrs(teo[i], 'HBA1')
+            # print ('reading {0}/AntennaFields/{1}-AntennaField.conf'.format(afddir, s[:_c]))
+            # teo[i] = antennafield.parse_antenna_field('{0}/AntennaFields/{1}-AntennaField.conf'.format(afddir, s[:_c]))
+            teo[i] = antennafield.from_file('{0}/AntennaFields/{1}-AntennaField.conf'.format(afddir, s[:_c]))
+            # afc[i] = afield_phase_centre_itrs(teo[i], 'HBA')
+            afc[i] = np.array(teo[i]['HBA'][0])
+            # afc0[i] = afield_phase_centre_itrs(teo[i], 'HBA0')
+            afc0[i] = np.array(teo[i]['HBA0'])
+            # afc1[i] = afield_phase_centre_itrs(teo[i], 'HBA1')
+            afc1[i] = np.array(teo[i]['HBA1'])
 
-        afc0_off = afield_phase_centre_itrs(center, 'LBA') - afc0
-        afc1_off = afield_phase_centre_itrs(center, 'LBA') - afc1
+        # afc0_off = afield_phase_centre_itrs(center, 'LBA') - afc0
+        # afc1_off = afield_phase_centre_itrs(center, 'LBA') - afc1
+        afc0_off = np.array(center['LBA'][0]) - afc0
+        afc1_off = np.array(center['LBA'][0]) - afc1
 
         ants0 = np.dot(matrix.T, afc0_off.T).T
         ants1 = np.dot(matrix.T, afc1_off.T).T
@@ -114,8 +123,10 @@ def station_offsets_pqr(station_list):
         _c = -3
 
         for i,s in enumerate(antennas):
-            teo[i] = antennafield.parse_antenna_field('{0}/../data/{1}-AntennaField.conf'.format(afddir, s[:_c]))
-            afc[i] = afield_phase_centre_itrs(teo[i], 'LBA')
+            # teo[i] = antennafield.parse_antenna_field('{0}/AntennaFields/{1}-AntennaField.conf'.format(afddir, s[:_c]))
+            teo[i] = antennafield.from_file('{0}/AntennaFields/{1}-AntennaField.conf'.format(afddir, s[:_c]))
+            # afc[i] = afield_phase_centre_itrs(teo[i], 'LBA')
+            afc[i] = np.array(teo[i]['ROTATION_MATRIX']['LBA'])
 
         afc_off = afield_phase_centre_itrs(center, 'LBA') - afc
 
