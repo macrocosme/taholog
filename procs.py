@@ -1,5 +1,7 @@
 import multiprocessing as mp
 import os
+import glob
+import numpy as np
 from taholog import misc, to_freq, xcorr, gencal, applycal, \
                     clip, average, to_uvhol, solve, order, plot
 
@@ -57,7 +59,7 @@ def _to_freq(trunk_dir, cs_str, target_id, reference_ids, params, num_pol, polma
             
     logger.info('Finished with to_freq step.')
 
-def _xcorr(trunk_dir, cs_str, reference_ids, target_id, xcorr_dt, params, num_pol, polmap, debug, verbose=False):
+def _xcorr(trunk_dir, cs_str, reference_ids, target_id, xcorr_dt, params, debug, verbose=False):
     if verbose: 
         print ('xcorr')
         print ('Make output directories if necessary. _xcorr')
@@ -204,7 +206,7 @@ def _applycal(trunk_dir, target_id, xcorr_dt, params, reference_ids, debug, verb
 
                     applycal.main(solutions_file, tgt, out)
 
-def _clip(trunk_dir, target_id, reference_ids, params, debug):
+def _clip(trunk_dir, target_id, reference_ids, xcorr_dt, params, debug):
 
     target = lambda ref, beam, spw: f'{trunk_dir}{target_id}_xcorr/{ref}/SAP000_B{beam:03d}_P000_spw{spw}_avg{xcorr_dt}_cal.h5'
     output = lambda ref, beam, spw: f'{trunk_dir}{target_id}_xcorr/{ref}/SAP000_B{beam:03d}_P000_spw{spw}_avg{xcorr_dt}_cal_clip.h5'
@@ -238,7 +240,7 @@ def _clip(trunk_dir, target_id, reference_ids, params, debug):
 
                     clip.abs_clip_vis(tgt, out, **kwargs)
 
-def _average_t(trunk_dir, target_id, average_t_dt, reference_ids, params, debug):
+def _average_t(trunk_dir, target_id, average_t_dt, reference_ids, xcorr_dt, params, debug):
     target = lambda ref, beam, spw: f'{trunk_dir}{target_id}_xcorr/{ref}/SAP000_B{beam:03d}_P000_spw{spw}_avg{xcorr_dt}_cal_clip.h5'
     output = lambda ref, beam, spw: f'{trunk_dir}{target_id}_xcorr/{ref}/SAP000_B{beam:03d}_P000_spw{spw}_avg{xcorr_dt}_cal_clip_avg{average_t_dt}.h5'
 

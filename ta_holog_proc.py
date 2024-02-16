@@ -85,7 +85,7 @@ def run_pipeline(params, verbose=False):
     xcorr_dt = params['xcorr_dt']
     if 'xcorr' in steps:
         with Profile() as profile:
-            print(f"{procs._xcorr(trunk_dir, cs_str, target_id, reference_ids, params, num_pol, polmap, debug, verbose) = }")
+            print(f"{procs._xcorr(trunk_dir, cs_str, target_id, reference_ids, params, debug, verbose) = }")
             (
                 Stats(profile)
                 .strip_dirs()
@@ -125,7 +125,7 @@ def run_pipeline(params, verbose=False):
 
     if 'clip' in steps:
         with Profile() as profile:
-            print(f"{procs._clip(trunk_dir, target_id, reference_ids, params, debug) = }")
+            print(f"{procs._clip(trunk_dir, target_id, reference_ids, xcorr_dt, params, debug) = }")
             (
                 Stats(profile)
                 .strip_dirs()
@@ -137,7 +137,7 @@ def run_pipeline(params, verbose=False):
 
     if 'average_t' in steps:
         with Profile() as profile:
-            print(f"{procs._average_t(trunk_dir, target_id, average_t_dt, reference_ids, params, debug) = }")
+            print(f"{procs._average_t(trunk_dir, target_id, average_t_dt, reference_ids, xcorr_dt, params, debug) = }")
             (
                 Stats(profile)
                 .strip_dirs()
