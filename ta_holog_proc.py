@@ -44,6 +44,7 @@ def run_pipeline(params, verbose=False):
     target_id = params['target_id']
     reference_ids = params['reference_ids']
     trunk_dir = params['trunk_dir']
+    output_dir = params['output_dir']
     cs_str = params['cs_str']
     debug = params['debug']
 
@@ -59,8 +60,14 @@ def run_pipeline(params, verbose=False):
     os.chdir(trunk_dir)
 
     if 'to_freq' in steps:
-        procs._to_freq(trunk_dir, cs_str, target_id, reference_ids, params, num_pol, polmap, logger, debug, verbose)
-
+        with Profile() as profile:
+            print(f"{procs._to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, num_pol, polmap, logger, debug, verbose) = }")
+            (
+                Stats(profile)
+                .strip_dirs()
+                .sort_stats(SortKey.CALLS)
+                .print_stats()
+            )
 
     os.chdir(trunk_dir)
 
@@ -85,7 +92,7 @@ def run_pipeline(params, verbose=False):
     xcorr_dt = params['xcorr_dt']
     if 'xcorr' in steps:
         with Profile() as profile:
-            print(f"{procs._xcorr(trunk_dir, cs_str, target_id, reference_ids, params, debug, verbose) = }")
+            print(f"{procs._xcorr(trunk_dir, cs_str, reference_ids, target_id, xcorr_dt, params, debug, verbose) = }")
             (
                 Stats(profile)
                 .strip_dirs()
@@ -95,7 +102,7 @@ def run_pipeline(params, verbose=False):
 
     if 'plot_beam' in steps:
         with Profile() as profile:
-            print(f"{procs._plot_beam(params, debug, verbose) = }")
+            print(f"{procs._plot_beam(params, verbose) = }")
             (
                 Stats(profile)
                 .strip_dirs()
@@ -187,7 +194,7 @@ def run_pipeline(params, verbose=False):
         
     if 'plot_report' in steps:
         with Profile() as profile:
-            print(f"{procs._plot_report(trunk_dir, target_id, xcorr_dt, average_t_dt, pol, params) = }")
+            print(f"{procs._plot_report(trunk_dir, target_id, xcorr_dt, average_t_dt, params) = }")
             (
                 Stats(profile)
                 .strip_dirs()

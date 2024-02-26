@@ -46,7 +46,7 @@ def plot_phase_beam(beam_data_files_func, outplot, spws, refs):
  
         ax = fig.add_subplot(grid[y,x])
  
-        for r,ref in enumerate(refs.split(',')):
+        for r,ref in enumerate(refs):
 
             tf = beam_data_files_func(ref, spw)
             logger.info('Reading file: {0} .'.format(tf))

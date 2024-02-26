@@ -1,16 +1,18 @@
 import multiprocessing as mp
 import os
+import re
 import glob
 import numpy as np
 from taholog import misc, to_freq, xcorr, gencal, applycal, \
                     clip, average, to_uvhol, solve, order, plot
 
-def _to_freq(trunk_dir, cs_str, target_id, reference_ids, params, num_pol, polmap, logger, debug, verbose=False):
+def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, num_pol, polmap, logger, debug, verbose=False):
     # Start with the reference stations.
     if verbose: 
         print ('to_freq.main for each reference station')
     for i,ref in enumerate(reference_ids):
         current_dir = f"{trunk_dir}{ref}/{cs_str}/"
+        # current_outdir = f"{output_dir}{ref}/"
         os.chdir(current_dir)
         input_file = f'{current_dir}{ref}_SAP000_B{0:03d}_S0_P000_bf.h5'
         output_base = f'{current_dir}{ref}_SAP000_B{0:03d}_P000_bf'
@@ -274,7 +276,7 @@ def _average_t(trunk_dir, target_id, average_t_dt, reference_ids, xcorr_dt, para
 
                     average.time_average_vis(tgt, out, **kwargs)
 
-def to_uvhol(trunk_dir, target_id, xcorr_dt, average_t_dt, reference_ids, params, debug):
+def _to_uvhol(trunk_dir, target_id, xcorr_dt, average_t_dt, reference_ids, params, debug):
     target = lambda ref, spw: f'{trunk_dir}{target_id}_xcorr/{ref}/SAP000_B*_P000_spw{spw}_avg{xcorr_dt}_cal_clip_avg{average_t_dt}.h5'
     output = lambda ref, spw: f'{trunk_dir}{target_id}_xcorr/{ref}/spw{spw}_avg{xcorr_dt}_cal_clip_avg{average_t_dt}'
 
@@ -355,7 +357,7 @@ def _order_sols(trunk_dir, target_id, xcorr_dt, average_t_dt, params):
         output = f'{trunk_dir}{target_id}_xcorr/avg{xcorr_dt}_cal_clip_avg{average_t_dt}_{pol}_sols.pickle'
         order.main(sol_files, output, params['order_sols_phase_reference_station'], params['order_sols_degree'])
 
-def _plot_report(trunk_dir, target_id, xcorr_dt, average_t_dt, pol, params):
+def _plot_report(trunk_dir, target_id, xcorr_dt, average_t_dt, params):
     for pol in params['solve_uvhol_pols']:
         solutions_file =  f'{trunk_dir}{target_id}_xcorr/avg{xcorr_dt}_cal_clip_avg{average_t_dt}_{pol}_sols.pickle'
         uvhol_files_func = lambda spw: f'{trunk_dir}{target_id}_xcorr/spw{spw}_avg{xcorr_dt}_cal_clip_avg{average_t_dt}_{pol}_t0.uvhol'
