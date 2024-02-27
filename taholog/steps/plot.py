@@ -7,8 +7,7 @@ import pylab as plt
 
 from matplotlib.backends.backend_pdf import PdfPages
 
-from taholog import misc
-from taholog import sols_to_mods as s2m
+from . import misc, sols_to_mods as s2m
 from holog.fourierimaging import dft2_fast
 
 def plot_phase_beam(beam_data_files_func, outplot, spws, refs):

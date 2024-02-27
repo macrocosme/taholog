@@ -2,8 +2,7 @@ import multiprocessing as mp
 import os
 import glob
 import numpy as np
-from taholog import misc, to_freq, xcorr, gencal, applycal, \
-                    clip, average, to_uvhol, solve, order, plot
+from taholog.steps import to_freq, xcorr, plot, gencal, applycal, clip, average, to_uvhol, misc, solve, order
 
 def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, num_pol, polmap, logger, debug, verbose=False):
     # Start with the reference stations.
@@ -12,22 +11,24 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
     for ref in reference_ids:
         current_dir = f"{trunk_dir}{ref}/{cs_str}/"
         outdir = f"{output_dir}{ref}"
-        # os.chdir(current_dir)
-        input_file = f'{current_dir}{ref}_SAP000_B{0:03d}_S0_P000_bf.h5'
-        output_base = f'{outdir}{ref}_SAP000_B{0:03d}_P000_bf'
-        to_freq.main(input_file, output_base, 
-                        params['to_freq_num_chan'], 
-                        num_pol, 
-                        params['to_freq_num_files'], 
-                        polmap)
+
+        for beam in params['ref_beams']:
+            # os.chdir(current_dir)
+            input_file = f'{current_dir}{ref}_SAP000_B{beam:03d}_S0_P000_bf.h5'
+            output_base = f'{outdir}{ref}_SAP000_B{beam:03d}_P000_bf'
+            to_freq.main(input_file, 
+                         output_base, 
+                         params['to_freq_num_chan'], 
+                         num_pol, 
+                         params['to_freq_num_files'], 
+                         polmap)
 
     # Now the target stations.
     # os.chdir(f'{trunk_dir}/{target_id}/{cs_str}')
     current_dir = f"{trunk_dir}{target_id}/{cs_str}/"
     outdir = f"{output_dir}{target_id}"
 
-    if not debug:
-        
+    if not debug: 
         pool = mp.Pool(processes=params['to_freq_cpus'])
         
         if verbose: 
@@ -78,7 +79,7 @@ def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, debug
             print (f'check if {xcorr_output_dir}/{ref} exists')
 
     target = lambda ibm, ifn: f'{output_dir}{target_id}/{cs_str}/{target_id}_SAP000_B{ibm:03d}_P000_bf_spw{ifn}.h5' 
-    refers = lambda ref, ifn: f'{output_dir}{ref}/{cs_str}/{ref}_SAP000_B000_P000_bf_spw{ifn}.h5' 
+    refers = lambda ref, refbm, ifn: f'{output_dir}{ref}/{cs_str}/{ref}_SAP000_B{refbm:03d}_P000_bf_spw{ifn}.h5' 
     output = lambda ref, ibm, ifn: f'{xcorr_output_dir}/{ref}/SAP000_B{ibm:03d}_P000_spw{ifn}_avg{xcorr_dt}.h5' 
     rfi_output = lambda ref, ibm, ifn: f'{xcorr_output_dir}/{ref}/SAP000_B{ibm:03d}_P000_spw{ifn}_rfiflags.h5'
 
@@ -86,8 +87,7 @@ def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, debug
                     'threshold_shrink_power': params['xcorr_threshold_shrink_power'],
                     'ext_time_percent': 0.5,
                     'ext_freq_percent': 0.5,
-                    'n_rfi_max': 1
-                                }
+                    'n_rfi_max': 1}
 
     kwargs = {'target_time_res': xcorr_dt,
                 'rfiflag': params['xcorr_rfiflag'],
@@ -99,17 +99,18 @@ def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, debug
         pool = mp.Pool(processes=params['xcorr_cpus'])
 
         for refid in reference_ids:
-            for spw in params['xcorr_spws']:
-                for ibm in params['xcorr_beams']:
+            for ref_beam in params['ref_beams']:
+                for spw in params['xcorr_spws']:
+                    for ibm in params['xcorr_beams']:
 
-                    tgt = target(ibm, spw)
-                    ref = refers(refid, spw)
-                    out = output(refid, ibm, spw)
-                    rfi = rfi_output(refid, ibm, spw)
+                        tgt = target(ibm, spw)
+                        ref = refers(refid, ref_beam, spw)
+                        out = output(refid, ibm, spw)
+                        rfi = rfi_output(refid, ibm, spw)
 
-                    kwargs['rfi_output'] = rfi
+                        kwargs['rfi_output'] = rfi
 
-                    pool.apply_async(xcorr.main, args=(tgt, ref, out), kwds=kwargs)
+                        pool.apply_async(xcorr.main, args=(tgt, ref, out), kwds=kwargs)
 
         pool.close()
         pool.join()
@@ -117,17 +118,18 @@ def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, debug
     else:
 
         for refid in reference_ids:
-            for spw in params['xcorr_spws']:
-                for ibm in params['xcorr_beams']:
+            for ref_beam in params['ref_beams']:
+                for spw in params['xcorr_spws']:
+                    for ibm in params['xcorr_beams']:
 
-                    tgt = target(ibm, spw)
-                    ref = refers(refid, spw)
-                    out = output(refid, ibm, spw)
-                    rfi = rfi_output(refid, ibm, spw)
+                        tgt = target(ibm, spw)
+                        ref = refers(refid, ref_beam, spw)
+                        out = output(refid, ibm, spw)
+                        rfi = rfi_output(refid, ibm, spw)
 
-                    kwargs['rfi_output'] = rfi
+                        kwargs['rfi_output'] = rfi
 
-                    xcorr.main(tgt, ref, out, **kwargs)
+                        xcorr.main(tgt, ref, out, **kwargs)
 
 def _plot_beam(params, verbose=False):
     if verbose: 
@@ -140,8 +142,8 @@ def _plot_beam(params, verbose=False):
 def _gencal(output_dir, target_id, xcorr_dt, reference_ids, params, debug, verbose=False):
     if verbose: 
         print ('gencal')
-    target = lambda ref, spw: f'{output_dir}{target_id}_xcorr/{ref}/SAP000_B000_P000_spw{spw}_avg{xcorr_dt}.h5'
-    output = lambda ref, spw: f'{output_dir}{target_id}_xcorr/{ref}/SAP000_B000_P000_spw{spw}_avg{xcorr_dt}_sol.h5'
+    target = lambda ref, refbm, spw: f'{output_dir}{target_id}_xcorr/{ref}/SAP000_B{refbm:03d}_P000_spw{spw}_avg{xcorr_dt}.h5'
+    output = lambda ref, refbm, spw: f'{output_dir}{target_id}_xcorr/{ref}/SAP000_B{refbm:03d}_P000_spw{spw}_avg{xcorr_dt}_sol.h5'
     
     kwargs = {'smooth': params['gencal_smooth']}
     
@@ -150,12 +152,13 @@ def _gencal(output_dir, target_id, xcorr_dt, reference_ids, params, debug, verbo
         pool = mp.Pool(processes=params['gencal_cpus'])
 
         for refid in reference_ids:
-            for spw in params['gencal_spws']:
+            for ref_beam in params['ref_beams']:
+                for spw in params['gencal_spws']:
 
-                tgt = target(refid, spw)
-                out = output(refid, spw)
-                
-                pool.apply_async(gencal.main, args=(tgt, out), kwds=kwargs)
+                    tgt = target(refid, ref_beam, spw)
+                    out = output(refid, ref_beam, spw)
+                    
+                    pool.apply_async(gencal.main, args=(tgt, out), kwds=kwargs)
 
         pool.close()
         pool.join()
@@ -163,12 +166,13 @@ def _gencal(output_dir, target_id, xcorr_dt, reference_ids, params, debug, verbo
     else:
 
         for refid in reference_ids:
-            for spw in params['gencal_spws']:
+            for ref_beam in params['ref_beams']:
+                for spw in params['gencal_spws']:
 
-                tgt = target(refid, spw)
-                out = output(refid, spw)
+                    tgt = target(refid, ref_beam, spw)
+                    out = output(refid, ref_beam, spw)
 
-                gencal.main(tgt, out, **kwargs)
+                    gencal.main(tgt, out, **kwargs)
 
 def _applycal(output_dir, target_id, xcorr_dt, params, reference_ids, debug, verbose=False):
     if verbose: 
@@ -182,17 +186,18 @@ def _applycal(output_dir, target_id, xcorr_dt, params, reference_ids, debug, ver
         pool = mp.Pool(processes=params['applycal_cpus'])
 
         for refid in reference_ids:
-            for spw in params['applycal_spws']:
-            
-                solutions_file = f'{output_dir}{target_id}_xcorr/{refid}/SAP000_B000_P000_spw{spw}_avg{xcorr_dt}_sol.h5'
+            for ref_beam in params['ref_beams']:
+                for spw in params['applycal_spws']:
+                
+                    solutions_file = f'{output_dir}{target_id}_xcorr/{refid}/SAP000_B{ref_beam:03d}_P000_spw{spw}_avg{xcorr_dt}_sol.h5'
 
-                for beam in params['applycal_beams']:
+                    for beam in params['applycal_beams']:
 
-                    tgt = target(refid, beam, spw)
-                    out = output(refid, beam, spw)
+                        tgt = target(refid, beam, spw)
+                        out = output(refid, beam, spw)
 
-                    pool.apply_async(applycal.main,
-                                        args=(solutions_file, tgt, out))
+                        pool.apply_async(applycal.main,
+                                            args=(solutions_file, tgt, out))
 
         pool.close()
         pool.join()
@@ -200,16 +205,17 @@ def _applycal(output_dir, target_id, xcorr_dt, params, reference_ids, debug, ver
     else:
 
         for refid in reference_ids:
-            for spw in params['applycal_spws']:
+            for ref_beam in params['ref_beams']:
+                for spw in params['applycal_spws']:
 
-                solutions_file = f'{output_dir}{target_id}_xcorr/{refid}/SAP000_B000_P000_spw{spw}_avg{xcorr_dt}_sol.h5'
+                    solutions_file = f'{output_dir}{target_id}_xcorr/{refid}/SAP000_B{ref_beam:03d}_P000_spw{spw}_avg{xcorr_dt}_sol.h5'
 
-                for beam in params['applycal_beams']:
+                    for beam in params['applycal_beams']:
 
-                    tgt = target(refid, beam, spw)
-                    out = output(refid, beam, spw)
+                        tgt = target(refid, beam, spw)
+                        out = output(refid, beam, spw)
 
-                    applycal.main(solutions_file, tgt, out)
+                        applycal.main(solutions_file, tgt, out)
 
 def _clip(output_dir, target_id, reference_ids, xcorr_dt, params, debug):
 

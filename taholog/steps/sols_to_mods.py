@@ -6,7 +6,7 @@ import scipy.constants as const
 from scipy.interpolate import griddata
 
 import holog
-from taholog import beam, stations
+from . import beam, stations
 
 def make_grid(xaxis, yaxis, symmetric=True):
     """

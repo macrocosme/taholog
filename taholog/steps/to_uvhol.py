@@ -8,7 +8,7 @@ import numpy as np
 from datetime import datetime
 
 from astropy import time
-from taholog import coordinates
+from . import coordinates
 
 def make_uvhol_header(ref_antennas, tgt_antennas, stokes, frequency_hz, if_num, t_start, t_end, numpoints):
     """

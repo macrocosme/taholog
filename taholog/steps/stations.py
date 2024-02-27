@@ -4,7 +4,7 @@ r'''
 import os
 import numpy as np
 
-import taholog.antfield as antennafield
+from . import antfield as antennafield
 
 def afield_rotation_matrix(antenna_field_list, field_name):
     r'''

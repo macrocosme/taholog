@@ -13,8 +13,8 @@ try:
 except ModuleNotFoundError:
     pass
 
-from taholog import misc
-from taholog import to_uvhol
+from . import misc
+from . import to_uvhol
 
 def average_uvhol(input_files, reference_ids, output, pol):
     r'''

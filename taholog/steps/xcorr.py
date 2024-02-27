@@ -7,8 +7,7 @@ import numpy as np
 
 from numpy.lib.scimath import sqrt as csqrt
 
-from taholog import misc
-from taholog import flag
+from . import misc, flag
 
 from datetime import datetime
 

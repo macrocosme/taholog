@@ -9,9 +9,7 @@ import astropy.units as u
 
 from astropy.coordinates import SkyCoord
 
-import taholog.antfield as antennafield
-
-from taholog import stations
+from . import stations, antfield as antennafield
 
 from astropy.utils import iers
 iers.conf.auto_max_age = None

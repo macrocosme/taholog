@@ -31,19 +31,19 @@ def set_nspec(filename, nchan=256):
     """
 
     props = get_props_from_filename(filename)
-    table = 'SUB_ARRAY_POINTING_{0}/BEAM_{1}'.format(props['SAP'], props['B'])
+    table = f"SUB_ARRAY_POINTING_{props['SAP']}/BEAM_{props['B']}"
 
     f = h5py.File(filename, 'r')
-    datah5 = f[table+'/STOKES_{0}'.format(props['S'])]
+    datah5 = f[table+f"/STOKES_{props['S']}"]
     head3 = f[table].attrs
-    nspw = datah5.shape[1]
+    nspw = datah5.shape[1]  # n spectral window(s), a.k.a. number of subbands
     nspec = datah5.shape[0]//nchan
     ntime = datah5.shape[0]
     sampl = head3['SAMPLING_RATE']
 
     return nspw, nspec, ntime, sampl
 
-def to_freq(data, nchan, nspec, npol, polmap, sample_rate, center_freq):
+def to_freq(data, nchan, nspec, npol, polmap, sample_rate, center_freq, threads=1):
     """
     Computes the FFT of a time series to obtain a spectrum.
     """
@@ -53,7 +53,7 @@ def to_freq(data, nchan, nspec, npol, polmap, sample_rate, center_freq):
         infft = pyfftw.empty_aligned(nchan, dtype=np.complex64)
         outfft = pyfftw.empty_aligned(nchan, dtype=np.complex64)
         # pyFFTW FFTW object to perform the actual DFT.
-        fft_object = pyfftw.FFTW(infft, outfft)
+        fft_object = pyfftw.FFTW(infft, outfft, threads=threads)
         # Data.
         fftdata = pyfftw.zeros_aligned((nspec,npol,nchan), dtype=np.complex64)
     else:
@@ -74,11 +74,11 @@ def to_freq(data, nchan, nspec, npol, polmap, sample_rate, center_freq):
             if len(polmap[p]) == 2:
                 i0,i1 = polmap[p]
                 if has_pyfftw:
-                    infft[:] = data[t*nchan:(t+1)*nchan,i0] + 1j*data[t*nchan:(t+1)*nchan,i1]
+                    infft[:] = data[t*nchan:(t+1)*nchan, i0] + 1j*data[t*nchan:(t+1)*nchan, i1]
                     fft_object()
-                    fftdata[t:t+1,p,:] = np.fft.fftshift(outfft)
+                    fftdata[t:t+1, p, :] = np.fft.fftshift(outfft)
                 else:
-                    fftdata[t:t+1,p,:] = np.fft.fftshift(np.fft.fft(data[t*nchan:(t+1)*nchan, i0] + 1j*data[t*nchan:(t+1)*nchan, i1]))
+                    fftdata[t:t+1, p, :] = np.fft.fftshift(np.fft.fft(data[t*nchan:(t+1)*nchan, i0] + 1j*data[t*nchan:(t+1)*nchan, i1]))
 
             elif len(polmap[p]) == 1:
                 i0 = polmap[p]
@@ -258,7 +258,13 @@ def main(input_file, output_base, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,
         # Read the header and extract relevant information.
         parse_head(input_file, beam, head, spw)
 
-        freq, beam_data_nu, beam_flag_nu = to_freq(beam_data[:,spw,:], nchan, nspec, npols, polmap, smplr, head['frequency_hz'])
+        freq, beam_data_nu, beam_flag_nu = to_freq(beam_data[:,spw,:], 
+                                                   nchan, 
+                                                   nspec, 
+                                                   npols, 
+                                                   polmap, 
+                                                   smplr, 
+                                                   head['frequency_hz'])
         data = beam_data_nu
         flag = beam_flag_nu
 

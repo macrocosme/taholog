@@ -20,14 +20,11 @@ from pstats import SortKey, Stats
 import matplotlib
 matplotlib.use('Agg')
 
-from taholog import procs
-
-from taholog import misc, to_freq, xcorr, gencal, applycal, \
-                    clip, average, to_uvhol, solve, order, plot
+import procs
 
 def check_ends_with_slash(path):
     if path[-1] != '/':
-    path = path + '/'
+        path += '/'
     return path
 
 def run_pipeline(params, verbose=False):
