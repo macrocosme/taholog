@@ -10,24 +10,43 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
     # Start with the reference stations.
     if verbose: 
         print ('to_freq.main for each reference station')
-    for i,ref in enumerate(reference_ids):
-        current_dir = f"{trunk_dir}{ref}/{cs_str}/"
-        # current_outdir = f"{output_dir}{ref}/"
-        os.chdir(current_dir)
-        input_file = f'{current_dir}{ref}_SAP000_B{0:03d}_S0_P000_bf.h5'
-        output_base = f'{current_dir}{ref}_SAP000_B{0:03d}_P000_bf'
-        to_freq.main(input_file, output_base, 
-                        params['to_freq_num_chan'], 
-                        num_pol, 
-                        params['to_freq_num_files'], 
-                        polmap)
+    logger.info(f"debug: {debug}")
+    if not debug:
+        logger.info(f"Multiprocessing: {params['to_freq_cpus']} processes.")
+        pool = mp.Pool(processes=params['to_freq_cpus'])
+        for ref in reference_ids:
+            current_dir = f"{trunk_dir}{ref}/{cs_str}/"
+            # current_outdir = f"{output_dir}{ref}/"
+            os.chdir(current_dir)
+            input_file = f'{current_dir}{ref}_SAP000_B{0:03d}_S0_P000_bf.h5'
+            output_base = f'{current_dir}{ref}_SAP000_B{0:03d}_P000_bf'
+
+            pool.apply_async(to_freq.main,
+                                args=(input_file, output_base, 
+                                    params['to_freq_num_chan'], 
+                                    num_pol, 
+                                    params['to_freq_num_files'],
+                                    polmap))
+        pool.close()
+        pool.join()
+    else:    
+        for ref in reference_ids:
+            current_dir = f"{trunk_dir}{ref}/{cs_str}/"
+            # current_outdir = f"{output_dir}{ref}/"
+            os.chdir(current_dir)
+            input_file = f'{current_dir}{ref}_SAP000_B{0:03d}_S0_P000_bf.h5'
+            output_base = f'{current_dir}{ref}_SAP000_B{0:03d}_P000_bf'
+            to_freq.main(input_file, output_base, 
+                            params['to_freq_num_chan'], 
+                            num_pol, 
+                            params['to_freq_num_files'], 
+                            polmap)
 
     # Now the target stations.
     os.chdir(f'{trunk_dir}/{target_id}/{cs_str}')
     current_dir = f"{trunk_dir}{target_id}/{cs_str}/"
 
     if not debug:
-        
         pool = mp.Pool(processes=params['to_freq_cpus'])
         
         if verbose: 
