@@ -7,6 +7,7 @@ import sys
 import h5py
 
 import ta_holog_proc as thp
+from utils import check_slash
 
 
 
@@ -36,6 +37,8 @@ if __name__ == '__main__':
     debug = args.debug
     verbose = args.verbose
 
+    print(f'debug:{debug}, verbose:{verbose}')
+
     # Paper target: reference may not be the right ones, and if not, the right ones no longer exist on CEP4 nor on the LTA. 
     # target_id = 'L658168'#  'L658158'
     # reference_ids = 'L650495,L650499,L650493' #,L650491'
@@ -43,14 +46,13 @@ if __name__ == '__main__':
 
     target_id = args.target_id # SAS id of the observation with the map (many rings)
     reference_ids = args.reference_ids
-    print (reference_ids)    
 
     # trunk_dir = '/data/scratch/holography/tutorial/data/new_holography_obs/hba_cs002/'
-    trunk_dir = args.input_dir
-    output_dir = args.output_dir
+    trunk_dir = check_slash(args.input_dir)
+    output_dir = check_slash(args.output_dir)
     target_beams = 169
     spws = 10
-    logfile = 'taholog_{0}.log'.format(target_id)
+    logfile = '../taholog_{0}.log'.format(target_id)
     
     cs_str = 'cs' # In CEP4 the files are stored in a CS directory.
     # cs_str = '' 
@@ -69,7 +71,7 @@ if __name__ == '__main__':
     to_freq_beams = range(0,target_beams)
 
     # Check if beams are included in a single reference id or not (not ideal)
-    f = h5py.File(f'{trunk_dir}{reference_ids[0]}_SAP000_B000_S0_P000_bf.h5', "r")
+    f = h5py.File(f'{trunk_dir}{reference_ids[0]}/{cs_str}/{reference_ids[0]}_SAP000_B000_S0_P000_bf.h5', "r")
     ref_beams = [i for i in range(f.attrs['OBSERVATION_STATIONS_LIST'].size)]
     f.close()
 
@@ -88,9 +90,9 @@ if __name__ == '__main__':
     # Will produce a plot of the phase of a beam for every refernce station and spectral window.
     plot_beam_spws = range(0,spws)
     plot_beam_refs = reference_ids
-    plot_beam_outp = '{0}/beam_plots.pdf'.format(trunk_dir)
+    plot_beam_outp = '{0}/beam_plots.pdf'.format(output_dir)
     plot_beam_beam = 0
-    plot_beam_ffun = lambda ref, spw: '{0}_xcorr/{1}/SAP000_B{2:03d}_P000_spw{3}_avg{4}.h5'.format(target_id, ref, plot_beam_beam, spw, xcorr_dt)
+    plot_beam_ffun = lambda ref, refbm, spw: f"{target_id}_xcorr/{ref}/{refbm}/SAP000_B{plot_beam_beam:03d}_P000_spw{spw}_avg{xcorr_dt}.h5"
 
     # gencal step options.
     # Finds the inverse of the Jones matrix of the central beam.

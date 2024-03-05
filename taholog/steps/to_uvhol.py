@@ -22,8 +22,6 @@ def make_uvhol_header(ref_antennas, tgt_antennas, stokes, frequency_hz, if_num, 
     except AttributeError:
         pass
 
-    print ('ref_antennas', ref_antennas)
-    print ('tgt_antennas', tgt_antennas)
     head = "#! RefAnt = {0} Antenna = {1} Stokes = {2} Freq = {3}\n"\
                        "#! MINsamp = 3 Npoint = 5\n"\
                        "#! IFnumber = {4} Channel = 1\n"\

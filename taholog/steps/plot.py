@@ -10,7 +10,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from . import misc, sols_to_mods as s2m
 from holog.fourierimaging import dft2_fast
 
-def plot_phase_beam(beam_data_files_func, outplot, spws, refs):
+def plot_phase_beam(beam_data_files_func, outplot, spws, refs, ref_beams):
     """
     Generates a plot showing the phase of the beam.
     """
@@ -45,57 +45,57 @@ def plot_phase_beam(beam_data_files_func, outplot, spws, refs):
  
         ax = fig.add_subplot(grid[y,x])
  
-        for r,ref in enumerate(refs.split(',')):
+        for r,ref in enumerate(refs):
+            for ref_beam in ref_beams:
+                tf = beam_data_files_func(ref, ref_beam, spw)
+                logger.info('Reading file: {0} .'.format(tf))
 
-            tf = beam_data_files_func(ref, spw)
-            logger.info('Reading file: {0} .'.format(tf))
+                fth5 = h5py.File(tf, 'r')
+                ht = fth5.attrs
+                beams = list(fth5.keys())
 
-            fth5 = h5py.File(tf, 'r')
-            ht = fth5.attrs
-            beams = list(fth5.keys())
+                # Load the central beam data.
+                logger.info('Loading data, sigma and flag.')
+                # dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data').value, dtype=np.complex64)
+                # st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma').value, dtype=np.complex64)
+                # ft = np.array(fth5['/{0}/FLAG'.format(beams[0])].get('flag').value, dtype=np.bool)
+                dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data'), dtype=np.complex64)
+                st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma'), dtype=np.complex64)
+                ft = np.array(fth5['/{0}/FLAG'.format(beams[0])].get('flag'), dtype=np.bool)
 
-            # Load the central beam data.
-            logger.info('Loading data, sigma and flag.')
-            # dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data').value, dtype=np.complex64)
-            # st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma').value, dtype=np.complex64)
-            # ft = np.array(fth5['/{0}/FLAG'.format(beams[0])].get('flag').value, dtype=np.bool)
-            dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data'), dtype=np.complex64)
-            st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma'), dtype=np.complex64)
-            ft = np.array(fth5['/{0}/FLAG'.format(beams[0])].get('flag'), dtype=np.bool)
+                # Apply flags to the data.
+                dt = np.ma.masked_where(ft, dt)
+                st = np.ma.masked_where(ft, st)
 
-            # Apply flags to the data.
-            dt = np.ma.masked_where(ft, dt)
-            st = np.ma.masked_where(ft, st)
+                # Load frequency axis.
+                # tgt_freq = np.array([fth5['/{0}/FREQ'.format(b)].get('freq').value for b in beams])
+                tgt_freq = np.array([fth5['/{0}/FREQ'.format(b)].get('freq') for b in beams])
 
-            # Load frequency axis.
-            # tgt_freq = np.array([fth5['/{0}/FREQ'.format(b)].get('freq').value for b in beams])
-            tgt_freq = np.array([fth5['/{0}/FREQ'.format(b)].get('freq') for b in beams])
+                # Compute the argument of the visibilities.
+                phase = np.angle(dt[:,0,0])
 
-            # Compute the argument of the visibilities.
-            phase = np.angle(dt[:,0,0])
+                if r == 0:
+                    ax.set_title('{0:.2f} MHz'.format(np.mean(tgt_freq)*1e-6))
 
-            if r == 0:
-                ax.set_title('{0:.2f} MHz'.format(np.mean(tgt_freq)*1e-6))
+                if s == 0:
 
-            if s == 0:
+                    ax.plot(phase, label='{0}'.format(ref))
 
-                ax.plot(phase, label='{0}'.format(ref))
+                else:
 
-            else:
+                    ax.plot(phase)
 
-                ax.plot(phase)
+                ax.set_ylim(-np.pi, np.pi)
 
-            ax.set_ylim(-np.pi, np.pi)
+                ax.minorticks_on()
+                ax.tick_params('both', direction='in', which='both',
+                            bottom=True, top=True, left=True, right=True)
 
-            ax.minorticks_on()
-            ax.tick_params('both', direction='in', which='both',
-                           bottom=True, top=True, left=True, right=True)
+                if x > 0:
+                    ax.yaxis.set_ticklabels([])
 
-            if x > 0:
-                ax.yaxis.set_ticklabels([])
-
-            if y < ny - 1:
-                ax.xaxis.set_ticklabels([])
+                if y < ny - 1:
+                    ax.xaxis.set_ticklabels([])
 
         if s == 0:
             ax.legend(loc=0, fancybox=True)
@@ -130,6 +130,7 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
     logger = logging.getLogger(__name__)
 
     # Load solutions.
+    print (solutions_file)
     sols = pickle.load(open(solutions_file, "rb"))
     
     ants = sorted(sols.keys())                       # Stations.

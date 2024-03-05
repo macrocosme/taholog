@@ -137,7 +137,6 @@ def join_pols(filename, ntime, nspw, nfiles):
     data[:,:,3] the imaginary part of Y
     """
     data = np.zeros((ntime, nspw, nfiles), dtype=np.float64)
-
     indx = filename.find('S0')
     fn = lambda s: '{0}S{1}{2}'.format(filename[:indx], s, filename[indx+2:])
 
@@ -146,9 +145,8 @@ def join_pols(filename, ntime, nspw, nfiles):
     for i in range(nfiles):
         fnm = fn(i)
         logger.info('Reading file: {0}'.format(fnm))
-        #logger.info(fnm)
         f = h5py.File(fnm, 'r')
-        table = 'SUB_ARRAY_POINTING_{0}/BEAM_{1}/STOKES_{2}'.format(props['SAP'], props['B'], i)
+        table = f"SUB_ARRAY_POINTING_{props['SAP']}/BEAM_{props['B']}/STOKES_{i}"
         data[:,:,i] = f[table]
 
     return data
@@ -236,6 +234,8 @@ def main(input_file, output_base, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,
 
     nspw, nspec, ntime, smplr = set_nspec(input_file, nchan=nchan)
 
+    logger.info(f'nspw, nspec, ntime, smplr: {nspw}, {nspec}, {ntime}, {smplr}')
+
     data, flag, beam, head = setup_containers(nspec, nchan, npols)
 
     beam_data = join_pols(input_file, ntime, nspw, nfiles)
@@ -243,11 +243,15 @@ def main(input_file, output_base, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,
     # Add integration time to header.
     #head['integration_time_s'] = nchan*1./smplr
 
+    logger.info('this_spw: {0}'.format(this_spw))
+
     # Select a particular spectral window/subband if specified
     if this_spw == -1:
         do_spws = range(nspw)
     else:
         do_spws = this_spw
+
+    # logger.info('do_spws {0}'.format(this_spw))
 
     logger.info('Will process spectral windows: {0}'.format(do_spws))
 
@@ -277,6 +281,7 @@ def main(input_file, output_base, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,
         logger.info('Saving file: {0}'.format(output))
         save_hdf5(output, freq, data, flag, beam, head)
 
+        logger.info(f'Processed spectral window: {spw}')
         logger.info('Processed one spectral window in: {0}'.format(datetime.now() - ctime))
 
     logger.info('Processed file {0} in {1}'.format(input_file, datetime.now() - start_time))

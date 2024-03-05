@@ -22,11 +22,6 @@ matplotlib.use('Agg')
 
 import procs
 
-def check_ends_with_slash(path):
-    if path[-1] != '/':
-        path += '/'
-    return path
-
 def run_pipeline(params, verbose=False):
     """
     Runs the steps required to process holography data (as recorded by COBALT).
@@ -43,8 +38,8 @@ def run_pipeline(params, verbose=False):
     # Unpack some kwargs.
     target_id = params['target_id']
     reference_ids = params['reference_ids']
-    trunk_dir = check_ends_with_slash(params['trunk_dir'])
-    output_dir = check_ends_with_slash(params['output_dir'])
+    trunk_dir = params['trunk_dir']
+    output_dir = params['output_dir']
     cs_str = params['cs_str']
     debug = params['debug']
 
@@ -57,24 +52,28 @@ def run_pipeline(params, verbose=False):
     cwd = os.getcwd()
 
     # Go to where the data is.
-    # os.chdir(trunk_dir)
+    os.chdir(trunk_dir)
 
     if 'to_freq' in steps:
         procs._to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, num_pol, polmap, logger, debug, verbose)
 
-
-    # os.chdir(trunk_dir)
+    # From here we will work in the output directory
+    os.chdir(output_dir)
 
     logger.info('Checking that there are enough output files.')
     if verbose: 
         print ('Checking that there are enough output files.')
     for ref in reference_ids: 
-        all_files = glob.glob(f'{output_dir}{ref}/{cs_str}/*spw*.h5')
-        if len(all_files) != params['spws']:
-            logger.error('The number of channelized files is different than expected for reference: {0}'.format(ref))
-            logger.error('Will not continue.')
-            sys.exit(1)   
-    all_files = glob.glob(f'{output_dir}{target_id}/{cs_str}/*spw*.h5')
+        for beam in params['ref_beams']:
+            # all_files = glob.glob(f'{output_dir}{ref}/{cs_str}/*spw*.h5')
+            all_files = glob.glob(f'{output_dir}{ref}/{beam}/*spw*.h5')
+            if len(all_files) != params['spws']:
+                logger.error(f'The number of channelized files is different than expected for reference: {ref}, beam: {beam}')
+                logger.error('Will not continue.')
+                logger.error(f"{len(all_files)} != {params['spws']}")
+                sys.exit(1)   
+    # all_files = glob.glob(f'{output_dir}{target_id}/{cs_str}/*spw*.h5')
+    all_files = glob.glob(f'{output_dir}{target_id}/*spw*.h5')
     if len(all_files) != params['target_beams']*params['spws']:
         logger.error('The number of channelized files is different than expected for reference: {0}'.format(ref))
         logger.error('Will not continue.')
@@ -85,10 +84,11 @@ def run_pipeline(params, verbose=False):
 
     xcorr_dt = params['xcorr_dt']
     if 'xcorr' in steps:
-        procs._xcorr(output_dir, cs_str, target_id, reference_ids, params, debug, verbose)
+        # procs._xcorr(output_dir, cs_str, target_id, reference_ids, params, debug, verbose)
+        procs._xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, debug, verbose)
 
     if 'plot_beam' in steps:
-        procs._plot_beam(params, debug, verbose)
+        procs._plot_beam(params, verbose)
 
     if 'gencal' in steps:
         procs._gencal(output_dir, target_id, xcorr_dt, reference_ids, params, debug, verbose)
@@ -117,6 +117,6 @@ def run_pipeline(params, verbose=False):
         procs._order_sols(output_dir, target_id, xcorr_dt, average_t_dt, params)
         
     if 'plot_report' in steps:
-        procs._plot_report(output_dir, target_id, xcorr_dt, average_t_dt, pol, params)
+        procs._plot_report(output_dir, target_id, xcorr_dt, average_t_dt, params)
 
     logger.info('Done with steps: {0}'.format(steps))

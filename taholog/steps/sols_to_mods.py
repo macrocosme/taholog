@@ -70,6 +70,7 @@ def make_model(spws, sols, uvhol_files_func, phase_ref_station=''):
     for i,k in enumerate(stats):
         amp_sol[:,i] = sols[k]['amp'][0,0]
         phs_sol[:,i] = sols[k]['ph'][0,0]
+        print (k, sols[k]['freq'].shape, sols[k]['tau'].shape, sols[k]['tau0'].shape, sols[phase_ref_station]['ph'][0,0,:].mean())
         phs_sol_fit[:,i] = 2.*np.pi*sols[k]['freq']*sols[k]['tau'] + sols[k]['tau0'] + np.deg2rad(sols[phase_ref_station]['ph'][0,0,:].mean())
         
     # Make model beams using the complex gain solutions.
