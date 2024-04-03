@@ -24,6 +24,7 @@ def main(target, reference, output, target_time_res=0, rfiflag=False, edges=0.25
 
     logger.info('Working on target file: {0}'.format(target))
     logger.info('And reference file: {0}'.format(reference))
+    logger.info('And output file: {0}'.format(output))
 
     # Open the target station file.
 #    try:

@@ -3,6 +3,7 @@ import os
 import glob
 import re
 import numpy as np
+import logging
 from utils import check_folder_exists_or_create
 from taholog.steps import to_freq, xcorr, plot, gencal, applycal, clip, average, to_uvhol, misc, solve, order
 
@@ -12,17 +13,17 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
         print ('to_freq.main for each reference station')
     if not debug:
         logger.info(f"Multiprocessing: {params['to_freq_cpus']} processes.")
-        pool = mp.Pool(processes=params['to_freq_cpus'])
+        
         for ref in reference_ids:
             current_dir = f"{trunk_dir}{ref}/{cs_str}/"
             os.chdir(current_dir)
 
             _outdir = check_folder_exists_or_create(f"{output_dir}{ref}", return_folder=True)
-
+            pool = mp.Pool(processes=params['to_freq_cpus'])
             for beam in params['ref_beams']:
                 input_file = f'{current_dir}{ref}_SAP000_B{beam:03d}_S0_P000_bf.h5'
                 outdir = check_folder_exists_or_create(f"{_outdir}{beam}", return_folder=True)
-                output_base = f'{outdir}{ref}_SAP000_B{beam:03d}_P000_bf'
+                output_base = f'{outdir}{ref}_SAP000_B{0:03d}_P000_bf'
 
                 logger.info(f'output_base: {output_base}')
 
@@ -33,8 +34,8 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
                                           num_pol, 
                                           params['to_freq_num_files'],
                                           polmap))
-        pool.close()
-        pool.join()
+            pool.close()
+            pool.join()
     else:    
         for ref in reference_ids:
             current_dir = f"{trunk_dir}{ref}/{cs_str}/"
@@ -45,7 +46,7 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
             for beam in params['ref_beams']:
                 input_file = f'{current_dir}{ref}_SAP000_B{beam:03d}_S0_P000_bf.h5'
                 outdir = check_folder_exists_or_create(f"{_outdir}{beam}", return_folder=True)
-                output_base = f'{outdir}{ref}_SAP000_B{beam:03d}_P000_bf'
+                output_base = f'{outdir}{ref}_SAP000_B{0:03d}_P000_bf'
                 
                 to_freq.main(input_file, 
                              output_base, 
@@ -109,12 +110,12 @@ def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, debug
                 check_folder_exists_or_create(f'{xcorr_output_dir}/{ref}/{ref_beam}', return_folder=False)
                 
 
-    # target = lambda ibm, ifn: f'{output_dir}{target_id}/{cs_str}/{target_id}_SAP000_B{ibm:03d}_P000_bf_spw{ifn}.h5' 
-    # refers = lambda ref, refbm, ifn: f'{output_dir}{ref}/{cs_str}/{ref}_SAP000_B{refbm:03d}_P000_bf_spw{ifn}.h5' 
-    target = lambda ibm, ifn: f'{output_dir}{target_id}/{target_id}_SAP000_B{ibm:03d}_P000_bf_spw{ifn}.h5' 
-    refers = lambda ref, refbm, ifn: f'{output_dir}{ref}/{refbm}/{ref}_SAP000_B{refbm:03d}_P000_bf_spw{ifn}.h5' 
-    output = lambda ref, refbm, ibm, ifn: f'{xcorr_output_dir}/{ref}/{refbm}/SAP000_B{ibm:03d}_P000_spw{ifn}_avg{xcorr_dt}.h5' 
-    rfi_output = lambda ref, refbm, ibm, ifn: f'{xcorr_output_dir}/{ref}/{refbm}/SAP000_B{ibm:03d}_P000_spw{ifn}_rfiflags.h5'
+    # target = lambda ibm, spw: f'{output_dir}{target_id}/{cs_str}/{target_id}_SAP000_B{ibm:03d}_P000_bf_spw{spw}.h5' 
+    # refers = lambda ref, refbm, spw: f'{output_dir}{ref}/{cs_str}/{ref}_SAP000_B{refbm:03d}_P000_bf_spw{spw}.h5' 
+    target = lambda ibm, spw: f'{output_dir}{target_id}/{target_id}_SAP000_B{ibm:03d}_P000_bf_spw{spw}.h5' 
+    refers = lambda ref, refbm, spw: f'{output_dir}{ref}/{refbm}/{ref}_SAP000_B000_P000_bf_spw{spw}.h5' 
+    output = lambda ref, refbm, ibm, spw: f'{xcorr_output_dir}/{ref}/{refbm}/SAP000_B{ibm:03d}_P000_spw{spw}_avg{xcorr_dt}.h5' 
+    rfi_output = lambda ref, refbm, ibm, spw: f'{xcorr_output_dir}/{ref}/{refbm}/SAP000_B{ibm:03d}_P000_spw{spw}_rfiflags.h5'
 
     rfi_kwargs = {'flagging_threshold': params['xcorr_flagging_threshold'],
                     'threshold_shrink_power': params['xcorr_threshold_shrink_power'],
@@ -130,7 +131,6 @@ def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, debug
     if not debug:
 
         pool = mp.Pool(processes=params['xcorr_cpus'])
-
         for refid in reference_ids:
             for ref_beam in params['ref_beams']:
                 for spw in params['xcorr_spws']:
@@ -144,7 +144,6 @@ def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, debug
                         kwargs['rfi_output'] = rfi
 
                         pool.apply_async(xcorr.main, args=(tgt, ref, out), kwds=kwargs)
-
         pool.close()
         pool.join()
 
@@ -176,8 +175,8 @@ def _plot_beam(params, verbose=False):
 def _gencal(output_dir, target_id, xcorr_dt, reference_ids, params, debug, verbose=False):
     if verbose: 
         print ('gencal')
-    target = lambda ref, refbm, spw: f'{output_dir}{target_id}_xcorr/{ref}/{refbm}/SAP000_B{refbm:03d}_P000_spw{spw}_avg{xcorr_dt}.h5'
-    output = lambda ref, refbm, spw: f'{output_dir}{target_id}_xcorr/{ref}/{refbm}/SAP000_B{refbm:03d}_P000_spw{spw}_avg{xcorr_dt}_sol.h5'
+    target = lambda ref, refbm, spw: f'{output_dir}{target_id}_xcorr/{ref}/{refbm}/SAP000_B000_P000_spw{spw}_avg{xcorr_dt}.h5'
+    output = lambda ref, refbm, spw: f'{output_dir}{target_id}_xcorr/{ref}/{refbm}/SAP000_B000_P000_spw{spw}_avg{xcorr_dt}_sol.h5'
     
     kwargs = {'smooth': params['gencal_smooth']}
     
@@ -223,7 +222,7 @@ def _applycal(output_dir, target_id, xcorr_dt, params, reference_ids, debug, ver
             for ref_beam in params['ref_beams']:
                 for spw in params['applycal_spws']:
                 
-                    solutions_file = f'{output_dir}{target_id}_xcorr/{refid}/{ref_beam}/SAP000_B{ref_beam:03d}_P000_spw{spw}_avg{xcorr_dt}_sol.h5'
+                    solutions_file = f'{output_dir}{target_id}_xcorr/{refid}/{ref_beam}/SAP000_B000_P000_spw{spw}_avg{xcorr_dt}_sol.h5'
 
                     for beam in params['applycal_beams']:
 
@@ -242,7 +241,7 @@ def _applycal(output_dir, target_id, xcorr_dt, params, reference_ids, debug, ver
             for ref_beam in params['ref_beams']:
                 for spw in params['applycal_spws']:
 
-                    solutions_file = f'{output_dir}{target_id}_xcorr/{refid}/{ref_beam}/SAP000_B{ref_beam:03d}_P000_spw{spw}_avg{xcorr_dt}_sol.h5'
+                    solutions_file = f'{output_dir}{target_id}_xcorr/{refid}/{ref_beam}/SAP000_B000_P000_spw{spw}_avg{xcorr_dt}_sol.h5'
 
                     for beam in params['applycal_beams']:
 
@@ -327,6 +326,8 @@ def _to_uvhol(output_dir, target_id, xcorr_dt, average_t_dt, reference_ids, para
     target = lambda ref, refbm, spw: f'{output_dir}{target_id}_xcorr/{ref}/{refbm}/SAP000_B*_P000_spw{spw}_avg{xcorr_dt}_cal_clip_avg{average_t_dt}.h5'
     output = lambda ref, refbm, spw: f'{output_dir}{target_id}_xcorr/{ref}/{refbm}/spw{spw}_avg{xcorr_dt}_cal_clip_avg{average_t_dt}'
 
+    logger = logging.getLogger(__name__)
+
     if not debug:
 
         pool = mp.Pool(processes=params['to_uvhol_cpus'])
@@ -339,6 +340,7 @@ def _to_uvhol(output_dir, target_id, xcorr_dt, average_t_dt, reference_ids, para
                     out = output(refid, ref_beam, spw)
 
                     tgt_list = glob.glob(tgt)
+
                     misc.natural_sort(tgt_list)
 
                     pool.apply_async(to_uvhol.main, args=(tgt_list, out))
@@ -373,6 +375,9 @@ def _average_uvhol(output_dir, target_id, xcorr_dt, average_t_dt, params, refere
                     file_list.append(glob.glob(f'{output_dir}{target_id}_xcorr/{refid}/{ref_beam}/*spw{spw}_avg{xcorr_dt}_cal_clip_avg{average_t_dt}_{pol}_t*.uvhol'))
 
             file_list = [item for sublist in file_list for item in sublist]
+
+            print (file_list)
+
             # <- to Here
             # The above can be replaced by this line:
             #file_list = glob.glob('{0}_xcorr/L*/*spw{1}_avg{2}_cal_clip_avg{3}_{4}_t*.uvhol'.format(target_id, spw, xcorr_dt, average_t_dt, pol))
@@ -380,7 +385,7 @@ def _average_uvhol(output_dir, target_id, xcorr_dt, average_t_dt, params, refere
 
             output = lambda t: f'{output_dir}{target_id}_xcorr/spw{spw}_avg{xcorr_dt}_cal_clip_avg{average_t_dt}_{pol}_t{t}.uvhol'
 
-            average.average_uvhol(file_list, reference_ids, output, pol)
+            average.average_uvhol(file_list, reference_ids, params, output, pol)
 
 def _solve_uvhol(output_dir, target_id, xcorr_dt, average_t_dt, params, logger):
     for pol in params['solve_uvhol_pols']:
@@ -411,6 +416,4 @@ def _plot_report(output_dir, target_id, xcorr_dt, average_t_dt, params):
     for pol in params['solve_uvhol_pols']:
         solutions_file =  f'{output_dir}{target_id}_xcorr/avg{xcorr_dt}_cal_clip_avg{average_t_dt}_{pol}_sols.pickle'
         uvhol_files_func = lambda spw: f'{output_dir}{target_id}_xcorr/spw{spw}_avg{xcorr_dt}_cal_clip_avg{average_t_dt}_{pol}_t0.uvhol'
-        
-        print (params['plot_report_output'](pol))
         plot.plot_report(params['plot_report_output'](pol), solutions_file, uvhol_files_func, params['order_sols_phase_reference_station'])

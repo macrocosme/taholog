@@ -230,11 +230,9 @@ def main(input_file, output_base, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,
 
     logger = logging.getLogger(__name__)
 
-    logger.info('Working on file: {0}'.format(input_file))
+    # logger.info('Working on file: {0}'.format(input_file))
 
     nspw, nspec, ntime, smplr = set_nspec(input_file, nchan=nchan)
-
-    logger.info(f'nspw, nspec, ntime, smplr: {nspw}, {nspec}, {ntime}, {smplr}')
 
     data, flag, beam, head = setup_containers(nspec, nchan, npols)
 
@@ -242,8 +240,6 @@ def main(input_file, output_base, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,
 
     # Add integration time to header.
     #head['integration_time_s'] = nchan*1./smplr
-
-    logger.info('this_spw: {0}'.format(this_spw))
 
     # Select a particular spectral window/subband if specified
     if this_spw == -1:
@@ -253,7 +249,7 @@ def main(input_file, output_base, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,
 
     # logger.info('do_spws {0}'.format(this_spw))
 
-    logger.info('Will process spectral windows: {0}'.format(do_spws))
+    logger.info('Will process spectral windows: {0} {1}'.format(do_spws, input_file.split('/')[-1]))
 
     for spw in do_spws:
 

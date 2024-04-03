@@ -39,8 +39,6 @@ def update_parset(solutions, old_parset, new_parset, subarray, filters):
                 or desc_[_keys['Station']] in solutions['sols_hba_x'].keys()) \
                 and desc_[_keys['SubArray']] in subarray and desc_[_keys['Filter']] in filters:
 
-                print(desc, desc_, val)
-
                 if 'LBA' in desc_[_keys['Station']]:
                     solsx = solutions['sols_lba_x']
                     solsy = solutions['sols_lba_y']
@@ -65,8 +63,6 @@ def update_parset(solutions, old_parset, new_parset, subarray, filters):
             elif desc_[_keys['SubArray']] == 'HBA_JOINED' and \
                  desc_[_keys['Station']] + '0' in solutions['sols_hba_x'].keys() and \
                  desc_[_keys['SubArray']] in subarray and desc_[_keys['Filter']] in filters:
-
-                print(desc, desc_, val)
 
                 stat0 = '{0}0'.format(desc_[_keys['Station']])
                 stat1 = '{0}1'.format(desc_[_keys['Station']])

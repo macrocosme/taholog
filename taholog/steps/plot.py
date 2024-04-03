@@ -130,7 +130,6 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
     logger = logging.getLogger(__name__)
 
     # Load solutions.
-    print (solutions_file)
     sols = pickle.load(open(solutions_file, "rb"))
     
     ants = sorted(sols.keys())                       # Stations.
