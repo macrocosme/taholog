@@ -10,6 +10,22 @@ try:
 except ImportError:
     has_pyfftw = False
 
+try:
+    from numba import (
+        jit, 
+        cuda, 
+        prange, 
+        uint8, 
+        float32, 
+        float64, 
+        complex64, 
+        bool_,
+        int64,
+    )
+    has_numba_cuda = True
+except: 
+    has_numba_cuda = False
+
 from datetime import datetime
 
 def get_props_from_filename(filename, props=['SAP', 'S', 'B']):
@@ -42,6 +58,63 @@ def set_nspec(filename, nchan=256):
     sampl = head3['SAMPLING_RATE']
 
     return nspw, nspec, ntime, sampl
+
+#     data                                nchan  nspec  npol   polmap                    s_r    c_f
+@jit((uint8[:, :, :](complex64[:, :, :]), int64, int64, int64, uint8[:, :](int64[:, :]), int64, float64), 
+     nopython=True,
+     parallel=True)
+def to_freq_numba(data, nchan, nspec, npol, polmap, sample_rate, center_freq):
+    fftdata = np.zeros((nspec,npol,nchan), dtype=np.complex64)
+    # Frequency.
+    fftfreq = np.zeros((nchan), dtype=np.float32)
+    # Flags.
+    flags = np.zeros((nspec,npol,nchan), dtype=np.bool)
+
+    freqres = 1./sample_rate
+
+    fftfreq = np.fft.fftshift(np.fft.fftfreq(nchan, freqres)) + center_freq
+
+    for t in prange(0, nspec-1):
+
+        for p in prange(0, npol-1):
+
+            if len(polmap[p]) == 2:
+                i0,i1 = polmap[p]
+                fftdata[t:t+1, p, :] = np.fft.fftshift(np.fft.fft(data[t*nchan:(t+1)*nchan, i0] + 1j*data[t*nchan:(t+1)*nchan, i1]))
+
+            elif len(polmap[p]) == 1:
+                i0 = polmap[p]
+                fftdata[t:t+1,p,:] = np.fft.fftshift(np.fft.fft(data[t*nchan:(t+1)*nchan, i0]))
+
+    return fftfreq, fftdata, flags
+
+#      data                                nchan  nspec  npol   polmap                    s_r    c_f
+@cuda((uint8[:, :, :](complex64[:, :, :]), int64, int64, int64, uint8[:, :](int64[:, :]), int64, float64))
+def to_freq_cuda(data, nchan, nspec, npol, polmap, sample_rate, center_freq):
+    i, j, k = cuda.grid(3)
+
+    fftdata = np.zeros((nspec,npol,nchan), dtype=np.complex64)
+    # Frequency.
+    fftfreq = np.zeros((nchan), dtype=np.float32)
+    # Flags.
+    flags = np.zeros((nspec,npol,nchan), dtype=np.bool)
+
+    freqres = 1./sample_rate
+
+    fftfreq = np.fft.fftshift(np.fft.fftfreq(nchan, freqres)) + center_freq
+
+    for t in range(nspec):
+        for p in range(npol):
+
+            if len(polmap[p]) == 2:
+                i0,i1 = polmap[p]
+                fftdata[t:t+1, p, :] = np.fft.fftshift(np.fft.fft(data[t*nchan:(t+1)*nchan, i0] + 1j*data[t*nchan:(t+1)*nchan, i1]))
+
+            elif len(polmap[p]) == 1:
+                i0 = polmap[p]
+                fftdata[t:t+1,p,:] = np.fft.fftshift(np.fft.fft(data[t*nchan:(t+1)*nchan, i0]))
+
+    return fftfreq, fftdata, flags
 
 def to_freq(data, nchan, nspec, npol, polmap, sample_rate, center_freq, threads=1):
     """
@@ -258,13 +331,23 @@ def main(input_file, output_base, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,
         # Read the header and extract relevant information.
         parse_head(input_file, beam, head, spw)
 
-        freq, beam_data_nu, beam_flag_nu = to_freq(beam_data[:,spw,:], 
-                                                   nchan, 
-                                                   nspec, 
-                                                   npols, 
-                                                   polmap, 
-                                                   smplr, 
-                                                   head['frequency_hz'])
+        if not has_numba_cuda:
+            freq, beam_data_nu, beam_flag_nu = to_freq(beam_data[:,spw,:],
+                                                       nchan,
+                                                       nspec,
+                                                       npols,
+                                                       polmap,
+                                                       smplr,
+                                                       head['frequency_hz'])
+        else:
+            freq, beam_data_nu, beam_flag_nu = to_freq_numba(beam_data[:,spw,:], 
+                                                             nchan, 
+                                                             nspec, 
+                                                             npols, 
+                                                             polmap, 
+                                                             smplr, 
+                                                             head['frequency_hz'])
+
         data = beam_data_nu
         flag = beam_flag_nu
 
