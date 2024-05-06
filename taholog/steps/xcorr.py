@@ -27,20 +27,15 @@ def main(target, reference, output, target_time_res=0, rfiflag=False, edges=0.25
     logger.info('And output file: {0}'.format(output))
 
     # Open the target station file.
-#    try:
     ft = h5py.File(target, 'r')
-#    except IOError:
-#        logger.info('Target file {0} not found.'.format(target))
-        #raise IOError('Target file {0} not found.'.format(target))
-        #sys.exit(1)
     ht = ft.attrs
     beams = list(ft.keys())
 
     # Open the reference station file.
     fr = h5py.File(reference, 'r')
     hr = fr.attrs
+
     # Load reference data.
-    # dr = np.array([fr['/{0}/DATA'.format(b)].get('data').value for b in fr.keys()], dtype=np.complex64)
     dr = np.array([fr['/{0}/DATA'.format(b)].get('data') for b in fr.keys()], dtype=np.complex64)
 
     ntimes = dr.shape[1]
@@ -50,8 +45,6 @@ def main(target, reference, output, target_time_res=0, rfiflag=False, edges=0.25
     logger.info('Will keep channels between: {0}--{1}.'.format(ch0, chf))
 
     # Load frequency axes and compare.
-    # tgt_freq = np.array([ft['/{0}/FREQ'.format(b)].get('freq').value for b in fr.keys()])
-    # ref_freq = np.array([fr['/{0}/FREQ'.format(b)].get('freq').value for b in fr.keys()])
     tgt_freq = np.array([ft['/{0}/FREQ'.format(b)].get('freq') for b in fr.keys()])
     ref_freq = np.array([fr['/{0}/FREQ'.format(b)].get('freq') for b in fr.keys()])
 

@@ -16,9 +16,9 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
         
         for ref in reference_ids:
             current_dir = f"{trunk_dir}{ref}/{cs_str}/"
-            os.chdir(current_dir)
-
             _outdir = check_folder_exists_or_create(f"{output_dir}{ref}", return_folder=True)
+            os.chdir(current_dir)
+            
             pool = mp.Pool(processes=params['to_freq_cpus'])
             for beam in params['ref_beams']:
                 input_file = f'{current_dir}{ref}_SAP000_B{beam:03d}_S0_P000_bf.h5'
@@ -33,14 +33,16 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
                                           params['to_freq_num_chan'], 
                                           num_pol, 
                                           params['to_freq_num_files'],
-                                          polmap))
+                                          polmap, 
+                                          params['to_freq_cpus'],
+                                          # Should add n_gpu_devices here too
+                                          ))
             pool.close()
             pool.join()
     else:    
         for ref in reference_ids:
             current_dir = f"{trunk_dir}{ref}/{cs_str}/"
             _outdir = check_folder_exists_or_create(f"{output_dir}{ref}", return_folder=True)
-
             os.chdir(current_dir)
 
             for beam in params['ref_beams']:
@@ -69,11 +71,13 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
             output_base = f'{outdir}{target_id}_SAP000_B{beam:03d}_P000_bf'
 
             pool.apply_async(to_freq.main,
-                                args=(input_file, output_base, 
-                                    params['to_freq_num_chan'], 
-                                    num_pol, 
-                                    params['to_freq_num_files'],
-                                    polmap))
+                                args=(input_file, 
+                                      output_base, 
+                                      params['to_freq_num_chan'], 
+                                      num_pol, 
+                                      params['to_freq_num_files'],
+                                      polmap,
+                                      params['to_freq_cpus']))
 
         pool.close()
         pool.join()

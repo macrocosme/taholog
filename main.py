@@ -25,8 +25,8 @@ if __name__ == '__main__':
                                                                        'average_uvhol', 'solve_uvhol', 'order_sols', 
                                                                        'plot_report'],
                         help="Steps to be run")
-    parser.add_argument("-d", "--debug", type=bool, default=False, help = "Debug: run steps without multiprocessing to get back all the error messages?")
-    parser.add_argument("-v", "--verbose", type=bool, default=False, help = "Verbose: print extra info about steps being run to terminal")
+    parser.add_argument("-d", "--debug", action=argparse.BooleanOptionalAction, help = "Debug: run steps without multiprocessing to get back all the error messages?")
+    parser.add_argument("-v", "--verbose", action=argparse.BooleanOptionalAction, help = "Verbose: print extra info about steps being run to terminal")
     parser.add_argument("-tid", "--target_id", type=str, default='L697741', help = "Observation SAS id")
     parser.add_argument("-rid", "--reference_ids", nargs='+', type=str, default=['L697733', 'L697735', 'L697737', 'L697739'], help="List of reference stations observations SAS ids")
     parser.add_argument("-i", "--input_dir", type=str, default='/data/vohl', help="Input data trunk directory")
