@@ -8,6 +8,7 @@ import multiprocessing as mp
 try:
     import pyfftw
     has_pyfftw = True
+    # has_pyfftw = False
 except ImportError:
     has_pyfftw = False
 
@@ -116,7 +117,7 @@ def fft_cupy(cpu_data, nspec, npol, nchan, polmap, device=0):
     with cp.cuda.Device(device):
         gpu_fftdata = cp.zeros((nspec,npol,nchan), dtype=np.complex64)
         # CPU to GPU
-        gpu_data = cp.array((nspec, nchan, polmap.size), dtype=np.float64)    
+        gpu_data = cp.array(cpu_data.reshape(nspec, nchan, polmap.size), dtype=np.float64)    
 
         for p in range(npol):  # X Y
             if len(polmap[p]) == 2:
@@ -253,7 +254,7 @@ def join_pols(filename, ntime, nspw, nfiles):
 
     for i in range(nfiles):
         fnm = fn(i)
-        logger.info('Reading file: {0}'.format(fnm))
+        # logger.info('Reading file: {0}'.format(fnm))
         f = h5py.File(fnm, 'r')
         table = f"SUB_ARRAY_POINTING_{props['SAP']}/BEAM_{props['B']}/STOKES_{i}"
         data[:,:,i] = f[table]
@@ -358,7 +359,7 @@ def main(input_file, output_base, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,
 
     # logger.info('do_spws {0}'.format(this_spw))
 
-    logger.info('Will process spectral windows: {0} {1}'.format(do_spws, input_file.split('/')[-1]))
+    # logger.info('Will process spectral windows: {0} {1}'.format(do_spws, input_file.split('/')[-1]))
 
     for spw in do_spws:
 
@@ -366,18 +367,17 @@ def main(input_file, output_base, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,
 
         # Check if process should be sent to CPU or GPU
         if ncpus > 1:
-            p_info = mp.current_process()
-            pid = p_info.pid
-            use_cupy = pid % ncpus < n_gpu_devices
-            if use_cupy:
-            device = pid % ncpus
-            # device = None
-            # use_cupy = False
+            # p_info = mp.current_process()
+            # pid = p_info.pid
+            # use_cupy = pid % ncpus < n_gpu_devices
+            # device = pid % ncpus if use_cupy else None
+            device = None
+            use_cupy = False
         else:
             use_cupy = True
             device = 0
 
-        logger.info(f'Use cuda: {use_cupy}')
+        # logger.info(f'Use cuda: {use_cupy}')
         # logger.info(f"Will process it on the {'cpu' if not use_cupy else 'gpu'} {device if use_cupy else ''}")
 
         # Read the header and extract relevant information.
@@ -402,11 +402,11 @@ def main(input_file, output_base, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,
 
         # Write output.
         output = output_base + '_spw{0}.h5'.format(spw)
-        logger.info('Saving file: {0}'.format(output))
+        # logger.info('Saving file: {0}'.format(output))
         save_hdf5(output, freq, data, flag, beam, head)
 
-        logger.info(f'Processed spectral window: {spw}')
-        logger.info('Processed one spectral window in: {0}'.format(datetime.now() - ctime))
+        # logger.info(f'Processed spectral window: {spw}')
+        # logger.info(f'Processed one spectral window in: {datetime.now() - ctime} -- {input_file}')
 
-    logger.info('Processed file {0} in {1}'.format(input_file, datetime.now() - start_time))
+    logger.info('Processed file {0} in {1}'.format(input_file.split('/')[-1], datetime.now() - start_time))
 
