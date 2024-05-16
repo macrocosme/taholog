@@ -4,12 +4,53 @@ import sys
 import h5py
 import logging
 import numpy as np
+try:
+    from numba import (
+        njit, jit, cuda, prange, typeof,
+        float32, float64, complex64, int64, boolean
+    )
+    has_numba = True
+except ImportError: 
+    has_numba = False
 
 from numpy.lib.scimath import sqrt as csqrt
 
 from . import misc, flag
 
 from datetime import datetime
+
+
+@jit
+def cross_correlate(dt, dr, dt_j:int, dr_i:int, dr_k:int, ch0:int, chf:int):
+    return dt[:,dt_j,ch0:chf]*np.conj(dr[dr_i,:,dr_k,ch0:chf])
+
+@jit
+def fast_average(xcorr, averaging_factor):
+    return np.average((xcorr).reshape((-1,averaging_factor,)+xcorr.shape[1:]), axis=1)
+
+@jit(parallel=True)
+def estimate_error(xcorr, xcorr_avgt0_shape, averaging_factor):
+    drz = np.zeros(xcorr_avgt0_shape, dtype=np.float32)
+    diz = np.zeros(xcorr_avgt0_shape, dtype=np.float32)
+
+    for t in prange(xcorr_avgt0_shape[0]):
+
+        t0_ = int(t*averaging_factor)
+        tf_ = int((t+1)*averaging_factor)
+
+        drz[t] = np.std(xcorr[t0_:tf_,:,:,:].real, axis=0)/ \
+                        np.sqrt(xcorr[t0_:tf_,:,:,:].shape[0] - 1., dtype=np.float64)
+        diz[t] = np.std(xcorr[t0_:tf_,:,:,:].imag, axis=0)/ \
+                        np.sqrt(xcorr[t0_:tf_,:,:,:].shape[0] - 1., dtype=np.float64)
+
+    return drz, diz
+
+@njit(cache=True)
+def determine_averaging_factor(ntimes, target_time_res, integration_s):
+    averaging_values = np.array(list(misc.factors(ntimes)))
+    averaging_factor = averaging_values[np.argmin(abs(int(round(target_time_res/integration_s)) - averaging_values))]
+    return averaging_factor
+
 
 def main(target, reference, output, target_time_res=0, rfiflag=False, edges=0.25, rfi_output='', rfi_kwargs={}):
     """
@@ -66,10 +107,14 @@ def main(target, reference, output, target_time_res=0, rfiflag=False, edges=0.25
     dt = ft['/{0}/DATA'.format(beams[0])].get('data')
 
     # Cross-correlate: target voltage times complex conjugate of reference voltage.
-    xcorr[:,:,0,0] = dt[:,0,ch0:chf]*np.conj(dr[0,:,0,ch0:chf])  # XX
-    xcorr[:,:,0,1] = dt[:,0,ch0:chf]*np.conj(dr[0,:,1,ch0:chf])  # XY
-    xcorr[:,:,1,0] = dt[:,1,ch0:chf]*np.conj(dr[0,:,0,ch0:chf])  # YX
-    xcorr[:,:,1,1] = dt[:,1,ch0:chf]*np.conj(dr[0,:,1,ch0:chf])  # YY 
+    # xcorr[:,:,0,0] = dt[:,0,ch0:chf]*np.conj(dr[0,:,0,ch0:chf])  # XX
+    # xcorr[:,:,0,1] = dt[:,0,ch0:chf]*np.conj(dr[0,:,1,ch0:chf])  # XY
+    # xcorr[:,:,1,0] = dt[:,1,ch0:chf]*np.conj(dr[0,:,0,ch0:chf])  # YX
+    # xcorr[:,:,1,1] = dt[:,1,ch0:chf]*np.conj(dr[0,:,1,ch0:chf])  # YY
+    xcorr[:,:,0,0] = cross_correlate(dt, dr, 0, 0, 0, ch0, chf)  # XX
+    xcorr[:,:,0,1] = cross_correlate(dt, dr, 0, 0, 1, ch0, chf)  # XY
+    xcorr[:,:,1,0] = cross_correlate(dt, dr, 1, 0, 0, ch0, chf)  # YX
+    xcorr[:,:,1,1] = cross_correlate(dt, dr, 1, 0, 1, ch0, chf)  # YY
 
     # Where are we looking at?
     beam_info = ft['/{0}/POINTING'.format(beams[0])]
@@ -86,10 +131,11 @@ def main(target, reference, output, target_time_res=0, rfiflag=False, edges=0.25
             tf = ht['mjd_end']
             obs_time = (tf - t0)*24*3600.
             integration_s = obs_time/ntimes
+
         logger.info('Input data has an integration time of: {0} s'.format(integration_s))
+
         # Determine the averaging factor to reach the desired time resolution.
-        averaging_values = np.array(list(misc.factors(ntimes)))
-        averaging_factor = averaging_values[np.argmin(abs(int(round(target_time_res/integration_s)) - averaging_values))]
+        averaging_factor = determine_averaging_factor(ntimes, target_time_res, integration_s)
         time_res = integration_s*averaging_factor
 
         logger.info('Averaging data in time by a factor of: {0}'.format(averaging_factor))
@@ -98,27 +144,16 @@ def main(target, reference, output, target_time_res=0, rfiflag=False, edges=0.25
 
         # Average to the desired time resolution.
         axis = 0
-        xcorr_avgt0 = np.average((xcorr).reshape((-1,averaging_factor,)+xcorr.shape[1:]), axis=1)
+        xcorr_avgt0 = fast_average(xcorr, averaging_factor)
 
         logger.info('Time averaged data has a shape of: {0}'.format(xcorr_avgt0.shape))
-
-        # Estimate the error for each time sample on the averaged data.
-        drz = np.zeros(xcorr_avgt0.shape, dtype=np.float32)
-        diz = np.zeros(xcorr_avgt0.shape, dtype=np.float32)
-
-        for t in range(xcorr_avgt0.shape[0]):
-
-            t0_ = int(t*averaging_factor)
-            tf_ = int((t+1)*averaging_factor)
-
-            drz[t] = np.std(xcorr[t0_:tf_,:,:,:].real, axis=0)/ \
-                            np.sqrt(xcorr[t0_:tf_,:,:,:].shape[0] - 1., dtype=np.float64)
-            diz[t] = np.std(xcorr[t0_:tf_,:,:,:].imag, axis=0)/ \
-                            np.sqrt(xcorr[t0_:tf_,:,:,:].shape[0] - 1., dtype=np.float64)
 
         logger.info('Masking invalid values.')
         xcorr_avgt0 = np.ma.masked_invalid(xcorr_avgt0)
 
+        # Estimate the error for each time sample on the averaged data.
+        drz, diz = estimate_error(xcorr, xcorr_avgt0.shape, averaging_factor)
+        
         # Radio Frequency Interference flag.
         if rfiflag:
 

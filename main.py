@@ -25,7 +25,7 @@ if __name__ == '__main__':
                                                                        'average_uvhol', 'solve_uvhol', 'order_sols', 
                                                                        'plot_report'],
                         help="Steps to be run")
-    parser.add_argument("-d", "--debug", action=argparse.BooleanOptionalAction, help = "Debug: run steps without multiprocessing to get back all the error messages?")
+    parser.add_argument("-p", "--parallel", action=argparse.BooleanOptionalAction, help = "Debug: run steps without multiprocessing to get back all the error messages?")
     parser.add_argument("-v", "--verbose", action=argparse.BooleanOptionalAction, help = "Verbose: print extra info about steps being run to terminal")
     parser.add_argument("-tid", "--target_id", type=str, default='L697741', help = "Observation SAS id")
     parser.add_argument("-rid", "--reference_ids", nargs='+', type=str, default=['L697733', 'L697735', 'L697737', 'L697739'], help="List of reference stations observations SAS ids")
@@ -34,10 +34,10 @@ if __name__ == '__main__':
 
     # Read arguments from command line
     args = parser.parse_args()
-    debug = args.debug
+    parallel = args.parallel
     verbose = args.verbose
 
-    print(f'debug:{debug}, verbose:{verbose}')
+    print(f'parallel:{parallel}, verbose:{verbose}')
 
     # Paper target: reference may not be the right ones, and if not, the right ones no longer exist on CEP4 nor on the LTA. 
     # target_id = 'L658168'#  'L658158'
@@ -67,7 +67,7 @@ if __name__ == '__main__':
     to_freq_num_chan = 64  # Number of channels per spectra.
     to_freq_num_pol = 2    # Number of polarizations recorded by the backend.
     to_freq_num_files = 4  # Number of files across which the complex valued polarizations are spread, two for X two for Y.
-    to_freq_cpus = 16
+    to_freq_cpus = 10
     to_freq_beams = range(0,target_beams)
 
     # Check if beams are included in a single reference id or not (not ideal)
@@ -169,7 +169,7 @@ if __name__ == '__main__':
               'target_beams': target_beams,
               'spws': spws,
               'logfile': logfile,
-              'debug': debug,
+              'parallel': parallel,
               'cs_str': cs_str,
               'steps': steps,
               'to_freq_num_chan': to_freq_num_chan,

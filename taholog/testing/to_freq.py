@@ -94,7 +94,7 @@ import cupy as cp
 has_cupy = True
 
 
-def timing():
+def time_fft_methods():
     timing = {
         'pyfftw_original': [], 
         'pyfftw': [], 

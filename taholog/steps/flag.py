@@ -3,9 +3,14 @@ Flagging functions.
 """
 
 import numpy as np
+from numba import (
+        njit, jit, cuda, prange, typeof,
+        float32, float64, complex64, int64, boolean
+    )
 
 from aoflagger import sumthreshold
 
+@njit(cache=False)
 def extend_flags(flags, time_percent=0.5, freq_percent=0.5):
     """
     Given a table of flags in the frequency time domain it flags all times 
@@ -39,17 +44,21 @@ def extend_flags(flags, time_percent=0.5, freq_percent=0.5):
 
     return extended_flags
 
+@njit(cache=True)
+def convert_data_to_Zscore(frame_data):
+    frame_data = np.ma.asarray(frame_data, dtype=np.float32)
+    frame_data -= frame_data.mean()
+    frame_data_std = frame_data.std()
+    if frame_data_std != 0.0:
+        frame_data /= frame_data_std
+
 def rfi_flag(frame_data, flagging_threshold, flag_window_lengths, threshold_shrink_power):
     """
     Uses a sumthreshold algorithm to flag RFI in frame_data.
     """
 
     # Convert data to a Z score.
-    frame_data = np.ma.asarray(frame_data, dtype=np.float32)
-    frame_data -= frame_data.mean()
-    frame_data_std = frame_data.std()
-    if frame_data_std != 0.0:
-        frame_data /= frame_data_std
+    convert_data_to_Zscore(frame_data)
 
     # Look for flags in the 2D data.
     flags = sumthreshold.sum_threshold_2d(frame_data,

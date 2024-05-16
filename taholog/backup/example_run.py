@@ -15,7 +15,7 @@ if __name__ == '__main__':
     target_beams = 169
     spws = 10
     logfile = 'taholog_{0}.log'.format(target_id)
-    debug = False # Run steps without multiprocessing to get back all the error messages?
+    parallel = False # Run steps without multiprocessing to get back all the error messages?
     cs_str = 'cs' # In CEP4 the files are stored in a CS directory.
     """
     When using the multiprocessing module, I cannot log the error messages that take place in a child process.
@@ -128,7 +128,7 @@ if __name__ == '__main__':
               'target_beams': target_beams,
               'spws': spws,
               'logfile': logfile,
-              'debug': debug,
+              'parallel': parallel,
               'cs_str': cs_str,
               'steps': steps,
               'to_freq_num_chan': to_freq_num_chan,
