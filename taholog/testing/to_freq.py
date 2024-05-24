@@ -17,7 +17,7 @@ spws = 10
 cs_str = 'cs'
 
 to_freq_num_chan = 64  # Number of channels per spectra.
-to_freq_num_pol = 2    # Number of polarizations recorded by the backend.
+to_freq_num_pol = 2    # Number of polarizations recorded by the backend. (Complex: real-imaginary)
 to_freq_num_files = 4  # Number of files across which the complex valued polarizations are spread, two for X two for Y.
 to_freq_cpus = 16
 to_freq_beams = range(0,target_beams)
