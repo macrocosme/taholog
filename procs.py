@@ -177,7 +177,6 @@ def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, paral
         pool.close()
         pool.join()
         
-
 def _plot_beam(params, verbose=False):
     if verbose: 
         print ('plot_beam')
@@ -216,7 +215,6 @@ def _gencal(output_dir, target_id, xcorr_dt, reference_ids, params, parallel, ve
                     pool.apply_async(gencal.main, args=(tgt, out), kwds=kwargs)
         pool.close()
         pool.join()
-
 
 def _applycal(output_dir, target_id, xcorr_dt, params, reference_ids, parallel, verbose=False):
     if verbose: 

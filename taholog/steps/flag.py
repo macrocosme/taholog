@@ -10,7 +10,6 @@ from numba import (
 
 from aoflagger import sumthreshold
 
-@njit(cache=False)
 def extend_flags(flags, time_percent=0.5, freq_percent=0.5):
     """
     Given a table of flags in the frequency time domain it flags all times 
@@ -44,7 +43,6 @@ def extend_flags(flags, time_percent=0.5, freq_percent=0.5):
 
     return extended_flags
 
-@njit(cache=True)
 def convert_data_to_Zscore(frame_data):
     frame_data = np.ma.asarray(frame_data, dtype=np.float32)
     frame_data -= frame_data.mean()

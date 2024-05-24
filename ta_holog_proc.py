@@ -30,7 +30,7 @@ def run_pipeline(params, verbose=False):
     logger = logging.getLogger(__name__)
  
     # Set up logger.
-    mp.log_to_stderr(logging.parallel)
+    mp.log_to_stderr(logging.DEBUG)
     
     steps = params['steps']
     logger.info('Will run the following steps: {0}'.format(steps))
