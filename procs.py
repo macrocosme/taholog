@@ -3,6 +3,7 @@ import os
 import glob
 import re
 import numpy as np
+from datetime import datetime
 import logging
 from utils import check_folder_exists_or_create
 from taholog.steps import to_freq, xcorr, plot, gencal, applycal, clip, average, to_uvhol, misc, solve, order
@@ -46,43 +47,68 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
     # Reference stations.
     if verbose: 
         print ('to_freq.main for each reference station')
+
+    current_directories = []
+    input_files = []
+    output_bases = []
+
+    # Construct files list
+    # First, reference stations
     for ref in reference_ids:
         current_dir = f"{trunk_dir}{ref}/{cs_str}/"
         _outdir = check_folder_exists_or_create(f"{output_dir}{ref}", return_folder=True)
         os.chdir(current_dir)
 
         for beam in params['ref_beams']:
-            input_file = f'{current_dir}{ref}_SAP000_B{beam:03d}_S0_P000_bf.h5'
+            current_directories.append( current_dir )
+            input_files.append( f'{current_dir}{ref}_SAP000_B{beam:03d}_S0_P000_bf.h5' )
             outdir = check_folder_exists_or_create(f"{_outdir}{beam}", return_folder=True)
-            output_base = f'{outdir}{ref}_SAP000_B{0:03d}_P000_bf'
-            
+            output_bases.append( f'{outdir}{ref}_SAP000_B{0:03d}_P000_bf' )
+
+    # Second, target stations
+    current_dir = f"{trunk_dir}{target_id}/{cs_str}/"
+    outdir = check_folder_exists_or_create(f"{output_dir}{target_id}", return_folder=True)
+    for beam in params['to_freq_beams']:
+        current_directories.append( current_dir )
+        input_files.append( f'{current_dir}{target_id}_SAP000_B{beam:03d}_S0_P000_bf.h5' )
+        output_bases.append( f'{outdir}{target_id}_SAP000_B{beam:03d}_P000_bf' )
+
+    # Run FFTs over all files
+    start_time = datetime.now()
+    if not parallel:
+        for current_dir, input_file, output_base in zip(current_directories, input_files, output_bases):
             to_freq.main(input_file, 
                          output_base, 
+                         current_dir,
                          params['to_freq_num_chan'], 
                          num_pol, 
                          params['to_freq_num_files'], 
                          polmap,
-                         parallel,
-                         params['to_freq_cpus'])
-
-    # Target stations.
-    current_dir = f"{trunk_dir}{target_id}/{cs_str}/"
-    os.chdir(current_dir)
-    outdir = check_folder_exists_or_create(f"{output_dir}{target_id}", return_folder=True)
-
-    for beam in params['to_freq_beams']:
-
-        input_file = f'{current_dir}{target_id}_SAP000_B{beam:03d}_S0_P000_bf.h5'
-        output_base = f'{outdir}{target_id}_SAP000_B{beam:03d}_P000_bf'
-
-        to_freq.main(input_file, 
-                     output_base, 
-                     params['to_freq_num_chan'], 
-                     num_pol, 
-                     params['to_freq_num_files'], 
-                     polmap,
-                     parallel,
-                     params['to_freq_cpus'])
+                         params['to_freq_cpus'],
+                         params['to_disk'], 
+                         params['use_pyfftw'], 
+                         params['use_gpu'])
+    else:
+        logger.info(f"Multiprocessing: {params['to_freq_cpus']} processes.")
+        pool = mp.Pool(processes=params['to_freq_cpus'])
+        for current_dir, input_file, output_base in zip(current_directories, input_files, output_bases):
+            pool.apply_async(to_freq.main,
+                            args=(
+                                input_file, 
+                                output_base, 
+                                current_dir,
+                                params['to_freq_num_chan'], 
+                                num_pol, 
+                                params['to_freq_num_files'], 
+                                polmap,
+                                params['to_freq_cpus'],
+                                params['to_disk'], 
+                                params['use_pyfftw'], 
+                                params['use_gpu']
+                            ))
+        pool.close()
+        pool.join()
+    logger.info(f'Processed {len(input_files)} files in {datetime.now() - start_time}')
             
     logger.info('Finished with to_freq step.')
 

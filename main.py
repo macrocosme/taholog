@@ -32,12 +32,19 @@ if __name__ == '__main__':
     parser.add_argument("-i", "--input_dir", type=str, default='/data/vohl', help="Input data trunk directory")
     parser.add_argument("-o", "--output_dir", type=str, default='/data/vohl/output', help="Output directory")
 
+    parser.add_argument("-d", "--to_disk", action=argparse.BooleanOptionalAction, help="Save to disk as HDF5")
+    parser.add_argument("-gpu", "--use_gpu", action=argparse.BooleanOptionalAction, help="Use GPU(s)")
+    parser.add_argument("-pyfftw", "--use_pyfftw", action=argparse.BooleanOptionalAction, help="Use pyfftw; if False, uses numpy")
+
     # Read arguments from command line
     args = parser.parse_args()
     parallel = args.parallel
+    to_disk = args.to_disk
+    use_gpu = args.use_gpu
+    use_pyfftw = args.use_pyfftw
     verbose = args.verbose
 
-    print(f'parallel:{parallel}, verbose:{verbose}')
+    print(f'parallel:{parallel}, verbose:{verbose}, to_disk:{to_disk}, use_gpu:{use_gpu}, use_pyfftw:{use_pyfftw}')
 
     # Paper target: reference may not be the right ones, and if not, the right ones no longer exist on CEP4 nor on the LTA. 
     # target_id = 'L658168'#  'L658158'
@@ -67,7 +74,7 @@ if __name__ == '__main__':
     to_freq_num_chan = 64  # Number of channels per spectra.
     to_freq_num_pol = 2    # Number of polarizations recorded by the backend.
     to_freq_num_files = 4  # Number of files across which the complex valued polarizations are spread, two for X two for Y.
-    to_freq_cpus = 10
+    to_freq_cpus = 16
     to_freq_beams = range(0,target_beams)
 
     # Check if beams are included in a single reference id or not (not ideal)
@@ -170,6 +177,9 @@ if __name__ == '__main__':
               'spws': spws,
               'logfile': logfile,
               'parallel': parallel,
+              'to_disk': to_disk,
+              'use_gpu': use_gpu,
+              'use_pyfftw': use_pyfftw,
               'cs_str': cs_str,
               'steps': steps,
               'to_freq_num_chan': to_freq_num_chan,
@@ -220,7 +230,7 @@ if __name__ == '__main__':
     formatter = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(filename=logfile, filemode='a', level=logging.DEBUG, format=formatter)
     logger = logging.getLogger(__name__)
-    
+    logger.info(f'parallel:{parallel}, verbose:{verbose}, to_disk:{to_disk}, use_gpu:{use_gpu}, use_pyfftw:{use_pyfftw}')
     
     thp.run_pipeline(kwargs, verbose=verbose)
 

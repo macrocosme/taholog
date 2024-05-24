@@ -1,3 +1,4 @@
+import os
 import re
 from datetime import datetime
 import h5py
@@ -31,7 +32,7 @@ except ImportError:
     has_cupy = False
 
 
-
+# data I/O and metadata related
 def get_props_from_filename(filename, props=['SAP', 'S', 'B']):
     """
     Extracts numbers and codes relevant to load the corresponding h5 tables given a filename.
@@ -62,143 +63,6 @@ def set_nspec(filename, nchan=256):
     sampl = head3['SAMPLING_RATE']
 
     return nspw, nspec, ntime, sampl
-
-def fft_pyfftw_original(data, nspec, npol, nchan, polmap, threads=1):
-    # pyFFTW aligned arrays to store input and output of DFT.
-    infft = pyfftw.empty_aligned(nchan, dtype=np.complex64)
-    outfft = pyfftw.empty_aligned(nchan, dtype=np.complex64)
-    # pyFFTW FFTW object to perform the actual DFT.
-    fft_object = pyfftw.FFTW(infft, outfft, threads=threads)
-    # Data.
-    fftdata = pyfftw.zeros_aligned((nspec,npol,nchan), dtype=np.complex64)
-
-    for t in range(nspec):
-        for p in range(npol):
-            if len(polmap[p]) == 2:
-                i0, i1 = polmap[p]
-                infft[:] = data[t*nchan:(t+1)*nchan, i0] + 1j*data[t*nchan:(t+1)*nchan, i1]
-                fft_object()
-                fftdata[t:t+1, p, :] = np.fft.fftshift(outfft)
-            else:
-                i0 = polmap[p]
-                infft = data[t*nchan:(t+1)*nchan, i0]
-                fft_object()
-                fftdata[t:t+1,p,:] = np.fft.fftshift(outfft)
-
-    return fftdata
-
-def fft_pyfftw(data, nspec, npol, nchan, polmap, threads=1):
-    # Reshape array
-    d = data.reshape(nspec, nchan, polmap.size)
-    # pyFFTW aligned arrays to store input and output of DFT.
-    infft = pyfftw.empty_aligned((nspec, nchan), dtype=np.complex64)
-    outfft = pyfftw.empty_aligned((nspec, nchan), dtype=np.complex64)
-    # pyFFTW FFTW object to perform the actual DFT.
-    fft_object = pyfftw.FFTW(infft, outfft, axes=(1,), threads=threads)
-    # Data.
-    fftdata = pyfftw.zeros_aligned((nspec,npol,nchan), dtype=np.complex64)
-
-    for p in range(npol):
-        if len(polmap[p]) == 2:
-            i0, i1 = polmap[p]
-            infft[:, :] = d[:, :, i0] + 1j*d[:, :, i1]
-            fft_object()
-            fftdata[:, p, :] = np.fft.fftshift(outfft, axes=(1,))
-        else:
-            i0 = polmap[p]
-            infft = d[:, :, i0]
-            fft_object()
-            fftdata[:,p,:] = np.fft.fftshift(outfft, axes=(1,))
-
-    return fftdata
-
-def fft_cupy(cpu_data, nspec, npol, nchan, polmap, device=0):
-    with cp.cuda.Device(device):
-        gpu_fftdata = cp.zeros((nspec,npol,nchan), dtype=np.complex64)
-        # CPU to GPU
-        gpu_data = cp.array(cpu_data.reshape(nspec, nchan, polmap.size), dtype=np.float64)    
-
-        for p in range(npol):  # X Y
-            if len(polmap[p]) == 2:
-                i0,i1 = polmap[p]
-                gpu_fftdata[:, p, :] = cp.fft.fftshift(
-                                        cp.fft.fft(gpu_data[:, :, i0] + 1j*gpu_data[:, :, i1], 
-                                                    axis=1),
-                                        axes=(1,)
-                                    )
-            elif len(polmap[p]) == 1:
-                i0 = polmap[p]
-                gpu_fftdata[:, p,:] = cp.fft.fftshift(cp.fft.fft(data[:, :, i0], axis=1), axes=(1,))
-
-        # GPU back to CPU 
-        cpu_fftdata = cp.asnumpy(gpu_fftdata)
-    return cpu_fftdata
-
-def fft_numpy(data, nspec, npol, nchan, polmap):
-    fftdata = np.zeros((nspec,npol,nchan), dtype=np.complex64)
-    d = data.reshape(nspec, nchan, polmap.size)
-    for p in range(npol):
-        if len(polmap[p]) == 2:
-            i0,i1 = polmap[p]
-            fftdata[:, p, :] = np.fft.fftshift(np.fft.fft(d[:, :, i0] + 1j*d[:, :, i1], axis=1), axes=(1,))
-        elif len(polmap[p]) == 1:
-            i0 = polmap[p]
-            fftdata[:,p,:] = np.fft.fftshift(np.fft.fft(d[:, :, i0], axis=1), axes=(1,))
-    return fftdata
-
-def fft_numpy_all_spws(data, nspw, nspec, npol, nchan, polmap):
-    fftdata = np.zeros((nspec, npol, nspw, nchan), dtype=np.complex64)
-    d = data.reshape(nspec, nchan, nspw, polmap.size)
-    for p in range(npol):
-        if len(polmap[p]) == 2:
-            i0,i1 = polmap[p]
-            fftdata[:, p, :] = np.fft.fftshift(np.fft.fft(d[:, :, i0] + 1j*d[:, :, i1], axis=1), axes=(1,))
-        elif len(polmap[p]) == 1:
-            i0 = polmap[p]
-            fftdata[:,p,:] = np.fft.fftshift(np.fft.fft(d[:, :, i0], axis=1), axes=(1,))
-    return fftdata
-
-def fft_numpy_original(data, nspec, npol, nchan, polmap):
-    fftdata = np.zeros((nspec,npol,nchan), dtype=np.complex64)
-    for t in range(nspec):
-        for p in range(npol):
-            if len(polmap[p]) == 2:
-                i0,i1 = polmap[p]
-                fftdata[t:t+1, p, :] = np.fft.fftshift(
-                                            np.fft.fft(
-                                                #    real
-                                                data[t*nchan:(t+1)*nchan, i0] + \
-                                                #       imaginary
-                                                1j*data[t*nchan:(t+1)*nchan, i1]
-                                            )
-                                        )
-            elif len(polmap[p]) == 1:
-                i0 = polmap[p]
-                fftdata[t:t+1,p,:] = np.fft.fftshift(np.fft.fft(data[t*nchan:(t+1)*nchan, i0]))
-    return fftdata
-
-def to_freq(data, nchan, nspec, npol, polmap, sample_rate, center_freq, use_cupy, device, threads=1):
-    """
-    Computes the FFT of a time series to obtain a spectrum.
-    """     
-    
-    # FFT.
-    if has_cupy and use_cupy:
-        fftdata = fft_cupy(data, nspec, npol, nchan, polmap, device)
-    elif has_pyfftw:
-        fftdata = fft_pyfftw(data, nspec, npol, nchan, polmap)
-    else:
-        fftdata = fft_numpy(data, nspec, npol, nchan, polmap)
-
-    # Frequency.
-    fftfreq = np.zeros((nchan), dtype=np.float32)
-    freqres = 1./sample_rate
-    fftfreq = np.fft.fftshift(np.fft.fftfreq(nchan, freqres)) + center_freq
-
-    # Flags.
-    flags = np.zeros((nspec,npol,nchan), dtype=bool)
-
-    return fftfreq, fftdata, flags
 
 def setup_containers(nspec, nchan, ncorr):
     """
@@ -327,22 +191,166 @@ def save_hdf5(output, freq, data, flag, beam, head):
     # Close file. 
     f.close()
 
-def call_fft(ncpus, n_gpu_devices, input_file, output_base, beam, head, beam_data, spw, nchan, nspec, npols, polmap, ntime, smplr):
-    ctime = datetime.now()
+# FFT functions
+def fft_pyfftw_original(data, nspec, npol, nchan, polmap, threads=1):
+    # pyFFTW aligned arrays to store input and output of DFT.
+    infft = pyfftw.empty_aligned(nchan, dtype=np.complex64)
+    outfft = pyfftw.empty_aligned(nchan, dtype=np.complex64)
+    # pyFFTW FFTW object to perform the actual DFT.
+    fft_object = pyfftw.FFTW(infft, outfft, threads=threads)
+    # Data.
+    fftdata = pyfftw.zeros_aligned((nspec,npol,nchan), dtype=np.complex64)
+
+    for t in range(nspec):
+        for p in range(npol):
+            if len(polmap[p]) == 2:
+                i0, i1 = polmap[p]
+                infft[:] = data[t*nchan:(t+1)*nchan, i0] + 1j*data[t*nchan:(t+1)*nchan, i1]
+                fft_object()
+                fftdata[t:t+1, p, :] = np.fft.fftshift(outfft)
+            else:
+                i0 = polmap[p]
+                infft = data[t*nchan:(t+1)*nchan, i0]
+                fft_object()
+                fftdata[t:t+1,p,:] = np.fft.fftshift(outfft)
+
+    return fftdata
+
+def fft_pyfftw(data, nspec, npol, nchan, polmap, threads=1):
+    # Reshape array
+    d = data.reshape(nspec, nchan, polmap.size)
+    # pyFFTW aligned arrays to store input and output of DFT.
+    infft = pyfftw.empty_aligned((nspec, nchan), dtype=np.complex64)
+    outfft = pyfftw.empty_aligned((nspec, nchan), dtype=np.complex64)
+    # pyFFTW FFTW object to perform the actual DFT.
+    fft_object = pyfftw.FFTW(infft, outfft, axes=(1,), threads=threads)
+    # Data.
+    fftdata = pyfftw.zeros_aligned((nspec,npol,nchan), dtype=np.complex64)
+
+    for p in range(npol):
+        if len(polmap[p]) == 2:
+            i0, i1 = polmap[p]
+            infft[:, :] = d[:, :, i0] + 1j*d[:, :, i1]
+            fft_object()
+            fftdata[:, p, :] = np.fft.fftshift(outfft, axes=(1,))
+        else:
+            i0 = polmap[p]
+            infft = d[:, :, i0]
+            fft_object()
+            fftdata[:,p,:] = np.fft.fftshift(outfft, axes=(1,))
+
+    return fftdata
+
+def fft_cupy(cpu_data, nspec, npol, nchan, polmap, device=0):
+    with cp.cuda.Device(device):
+        gpu_fftdata = cp.zeros((nspec,npol,nchan), dtype=np.complex64)
+        # CPU to GPU
+        gpu_data = cp.array(cpu_data.reshape(nspec, nchan, polmap.size), dtype=np.float64)    
+
+        for p in range(npol):  # X Y
+            if len(polmap[p]) == 2:
+                i0,i1 = polmap[p]
+                gpu_fftdata[:, p, :] = cp.fft.fftshift(
+                                        cp.fft.fft(gpu_data[:, :, i0] + 1j*gpu_data[:, :, i1], 
+                                                    axis=1),
+                                        axes=(1,)
+                                    )
+            elif len(polmap[p]) == 1:
+                i0 = polmap[p]
+                gpu_fftdata[:, p,:] = cp.fft.fftshift(cp.fft.fft(gpu_data[:, :, i0], axis=1), axes=(1,))
+
+        # GPU back to CPU 
+        cpu_fftdata = cp.asnumpy(gpu_fftdata)
+    return cpu_fftdata
+
+def fft_numpy(data, nspec, npol, nchan, polmap):
+    fftdata = np.zeros((nspec,npol,nchan), dtype=np.complex64)
+    d = data.reshape(nspec, nchan, polmap.size)
+    for p in range(npol):
+        if len(polmap[p]) == 2:
+            i0,i1 = polmap[p]
+            fftdata[:, p, :] = np.fft.fftshift(np.fft.fft(d[:, :, i0] + 1j*d[:, :, i1], axis=1), axes=(1,))
+        elif len(polmap[p]) == 1:
+            i0 = polmap[p]
+            fftdata[:,p,:] = np.fft.fftshift(np.fft.fft(d[:, :, i0], axis=1), axes=(1,))
+    return fftdata
+
+def fft_numpy_all_spws(data, nspw, nspec, npol, nchan, polmap):
+    fftdata = np.zeros((nspec, npol, nspw, nchan), dtype=np.complex64)
+    d = data.reshape(nspec, nchan, nspw, polmap.size)
+    for p in range(npol):
+        if len(polmap[p]) == 2:
+            i0,i1 = polmap[p]
+            fftdata[:, p, :] = np.fft.fftshift(np.fft.fft(d[:, :, i0] + 1j*d[:, :, i1], axis=1), axes=(1,))
+        elif len(polmap[p]) == 1:
+            i0 = polmap[p]
+            fftdata[:,p,:] = np.fft.fftshift(np.fft.fft(d[:, :, i0], axis=1), axes=(1,))
+    return fftdata
+
+def fft_numpy_original(data, nspec, npol, nchan, polmap):
+    fftdata = np.zeros((nspec,npol,nchan), dtype=np.complex64)
+    for t in range(nspec):
+        for p in range(npol):
+            if len(polmap[p]) == 2:
+                i0,i1 = polmap[p]
+                fftdata[t:t+1, p, :] = np.fft.fftshift(
+                                            np.fft.fft(
+                                                #    real
+                                                data[t*nchan:(t+1)*nchan, i0] + \
+                                                #       imaginary
+                                                1j*data[t*nchan:(t+1)*nchan, i1]
+                                            )
+                                        )
+            elif len(polmap[p]) == 1:
+                i0 = polmap[p]
+                fftdata[t:t+1,p,:] = np.fft.fftshift(np.fft.fft(data[t*nchan:(t+1)*nchan, i0]))
+    return fftdata
+
+def to_freq(data, nchan, nspec, npol, polmap, sample_rate, center_freq, use_pyfftw=True, use_cupy=True, device=0, threads=1):
+    """
+    Computes the FFT of a time series to obtain a spectrum.
+    """     
+    
+    # FFT.
+    if has_cupy and use_cupy:
+        fftdata = fft_cupy(data, nspec, npol, nchan, polmap, device)
+    elif has_pyfftw and use_pyfftw:
+        fftdata = fft_pyfftw(data, nspec, npol, nchan, polmap)
+    else:
+        fftdata = fft_numpy(data, nspec, npol, nchan, polmap)
+
+    # Frequency.
+    fftfreq = np.zeros((nchan), dtype=np.float32)
+    freqres = 1./sample_rate
+    fftfreq = np.fft.fftshift(np.fft.fftfreq(nchan, freqres)) + center_freq
+
+    # Flags.
+    flags = np.zeros((nspec,npol,nchan), dtype=bool)
+
+    return fftfreq, fftdata, flags
+
+def call_fft(ncpus, n_gpu_devices, input_file, output_base, beam, head, beam_data, spw, nchan, nspec, npols, polmap, ntime, smplr, to_disk=True, use_pyfftw=True, use_gpu=True):
     logger = logging.getLogger(__name__)
 
+    ctime = datetime.now()
     head['frequency_hz'] = head['AXIS_VALUES_WORLD'][spw]
 
     # Check if process should be sent to CPU or GPU
-    if ncpus > 1:
+    if ncpus > 1 and use_gpu:
         p_info = mp.current_process()
         pid = p_info.pid
-        use_cupy = pid % ncpus < n_gpu_devices
-        device = pid % ncpus if use_cupy else None
-        # device = None
-        # use_cupy = False
-    else:
+        # use_cupy = pid % ncpus < n_gpu_devices
         use_cupy = True
+        # device = pid % ncpus if use_cupy else None
+        device = pid % n_gpu_devices
+    elif ncpus > 1:
+        device = None
+        use_cupy = False
+    elif use_gpu:
+        use_cupy = True
+        device = 0
+    else:
+        use_cupy = False
         device = 0
 
     # logger.info(f'Use cuda: {use_cupy}')
@@ -358,6 +366,7 @@ def call_fft(ncpus, n_gpu_devices, input_file, output_base, beam, head, beam_dat
                                                polmap,
                                                smplr,
                                                head['frequency_hz'],
+                                               use_pyfftw,
                                                use_cupy, 
                                                device)
 
@@ -368,15 +377,18 @@ def call_fft(ncpus, n_gpu_devices, input_file, output_base, beam, head, beam_dat
     head['time_samples'] = ntime
     head['integration_time_s'] = nchan*1./smplr
 
-    # Write output.
-    output = output_base + '_spw{0}.h5'.format(spw)
-    # logger.info('Saving file: {0}'.format(output))
-    save_hdf5(output, freq, data, flag, beam, head)
+    if to_disk:
+        # Write output.
+        output = output_base + '_spw{0}.h5'.format(spw)
+        # logger.info('Saving file: {0}'.format(output))
+        save_hdf5(output, freq, data, flag, beam, head)
 
     # logger.info(f'Processed spectral window: {spw}')
-    logger.info(f'{use_cupy} {device}: Processed spectral window {spw} in: {datetime.now() - ctime} -- {input_file.split("/")[-1]}')
+    # logger.info(f'{use_cupy} {device}: Processed spectral window {spw} in: {datetime.now() - ctime} -- {input_file.split("/")[-1]}')
 
-def main(input_file, output_base, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,3]], parallel=False, ncpus=1, n_gpu_devices=2, this_spw=-1):
+
+def main(input_file, output_base, current_dir, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,3]], 
+         ncpus=1, to_disk=True, use_pyfftw=True, use_gpu=True, n_gpu_devices=2, this_spw=-1):
     r"""
     Main body of script.
     
@@ -385,11 +397,16 @@ def main(input_file, output_base, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,
     of the same observation.
     """
 
-    start_time = datetime.now()
-
     logger = logging.getLogger(__name__)
 
-    # logger.info('Working on file: {0}'.format(input_file))
+    start_time = datetime.now()
+
+    p_info = mp.current_process()
+    pid = p_info.pid
+
+    os.chdir(current_dir)
+
+    logger.info(f'Working on file: {input_file} ({pid})')
 
     nspw, nspec, ntime, smplr = set_nspec(input_file, nchan=nchan)
 
@@ -411,17 +428,10 @@ def main(input_file, output_base, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,
     parse_head(input_file, beam, head)
 
     # logger.info('Will process spectral windows: {0} {1}'.format(do_spws, input_file.split('/')[-1]))
-    if not parallel:
-        for spw in do_spws:
-            call_fft(ncpus, n_gpu_devices, input_file, output_base, beam, head, beam_data, spw, nchan, nspec, npols, polmap, ntime, smplr)
-    else:
-        logger.info(f"Multiprocessing: {ncpus} processes.")
-        pool = mp.Pool(processes=ncpus)
-        for spw in do_spws:
-            pool.apply_async(call_fft, 
-                             args=(ncpus, n_gpu_devices, input_file, output_base, beam, head, beam_data, spw, nchan, nspec, npols, polmap, ntime, smplr))
-        pool.close()
-        pool.join()
+    for spw in do_spws:
+        call_fft(ncpus, n_gpu_devices, input_file, output_base, beam, head, 
+                 beam_data, spw, nchan, nspec, npols, polmap, ntime, smplr, 
+                 to_disk, use_pyfftw, use_gpu)
 
     logger.info('Processed file {0} in {1}'.format(input_file.split('/')[-1], datetime.now() - start_time))
 

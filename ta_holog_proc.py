@@ -41,7 +41,7 @@ def run_pipeline(params, verbose=False):
     trunk_dir = params['trunk_dir']
     output_dir = params['output_dir']
     cs_str = params['cs_str']
-    debug = params['debug']
+    parallel = params['parallel']
 
     # Setup polarization mapping
     num_pol = params['to_freq_num_pol']
@@ -55,7 +55,7 @@ def run_pipeline(params, verbose=False):
     os.chdir(trunk_dir)
 
     if 'to_freq' in steps:
-        procs._to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, num_pol, polmap, logger, debug, verbose)
+        procs._to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, num_pol, polmap, logger, parallel, verbose)
 
     # From here we will work in the output directory
     os.chdir(output_dir)
