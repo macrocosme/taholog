@@ -30,7 +30,7 @@ def run_pipeline(params, verbose=False):
     logger = logging.getLogger(__name__)
  
     # Set up logger.
-    mp.log_to_stderr(logging.DEBUG)
+    mp.log_to_stderr(logging.parallel)
     
     steps = params['steps']
     logger.info('Will run the following steps: {0}'.format(steps))
@@ -84,28 +84,28 @@ def run_pipeline(params, verbose=False):
 
     xcorr_dt = params['xcorr_dt']
     if 'xcorr' in steps:
-        # procs._xcorr(output_dir, cs_str, target_id, reference_ids, params, debug, verbose)
-        procs._xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, debug, verbose)
+        # procs._xcorr(output_dir, cs_str, target_id, reference_ids, params, parallel, verbose)
+        procs._xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, parallel, verbose)
 
     if 'plot_beam' in steps:
         procs._plot_beam(params, verbose)
 
     if 'gencal' in steps:
-        procs._gencal(output_dir, target_id, xcorr_dt, reference_ids, params, debug, verbose)
+        procs._gencal(output_dir, target_id, xcorr_dt, reference_ids, params, parallel, verbose)
 
     if 'applycal' in steps:
-        procs._applycal(output_dir, target_id, xcorr_dt, params, reference_ids, debug, verbose)
+        procs._applycal(output_dir, target_id, xcorr_dt, params, reference_ids, parallel, verbose)
 
     if 'clip' in steps:
-        procs._clip(output_dir, target_id, reference_ids, xcorr_dt, params, debug)
+        procs._clip(output_dir, target_id, reference_ids, xcorr_dt, params, parallel)
 
     average_t_dt = params['average_t_dt']
 
     if 'average_t' in steps:
-        procs._average_t(output_dir, target_id, average_t_dt, reference_ids, xcorr_dt, params, debug)
+        procs._average_t(output_dir, target_id, average_t_dt, reference_ids, xcorr_dt, params, parallel)
 
     if 'to_uvhol' in steps:
-        procs._to_uvhol(output_dir, target_id, xcorr_dt, average_t_dt, reference_ids, params, debug)
+        procs._to_uvhol(output_dir, target_id, xcorr_dt, average_t_dt, reference_ids, params, parallel)
 
     if 'average_uvhol' in steps:
         procs._average_uvhol(output_dir, target_id, xcorr_dt, average_t_dt, params, reference_ids)

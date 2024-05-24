@@ -145,8 +145,21 @@ def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, paral
                 'edges': params['xcorr_edges'],
                 'rfi_kwargs': rfi_kwargs}
 
-    if parallel:
+    if not parallel:
+        for refid in reference_ids:
+            for ref_beam in params['ref_beams']:
+                for spw in params['xcorr_spws']:
+                    for ibm in params['xcorr_beams']:
 
+                        tgt = target(ibm, spw)
+                        ref = refers(refid, ref_beam, spw)
+                        out = output(refid, ref_beam, ibm, spw)
+                        rfi = rfi_output(refid, ref_beam, ibm, spw)
+
+                        kwargs['rfi_output'] = rfi
+
+                        xcorr.main(tgt, ref, out, **kwargs)
+    else:
         pool = mp.Pool(processes=params['xcorr_cpus'])
         for refid in reference_ids:
             for ref_beam in params['ref_beams']:
@@ -163,22 +176,7 @@ def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, paral
                         pool.apply_async(xcorr.main, args=(tgt, ref, out), kwds=kwargs)
         pool.close()
         pool.join()
-
-    else:
-
-        for refid in reference_ids:
-            for ref_beam in params['ref_beams']:
-                for spw in params['xcorr_spws']:
-                    for ibm in params['xcorr_beams']:
-
-                        tgt = target(ibm, spw)
-                        ref = refers(refid, ref_beam, spw)
-                        out = output(refid, ref_beam, ibm, spw)
-                        rfi = rfi_output(refid, ref_beam, ibm, spw)
-
-                        kwargs['rfi_output'] = rfi
-
-                        xcorr.main(tgt, ref, out, **kwargs)
+        
 
 def _plot_beam(params, verbose=False):
     if verbose: 
@@ -198,23 +196,6 @@ def _gencal(output_dir, target_id, xcorr_dt, reference_ids, params, parallel, ve
     kwargs = {'smooth': params['gencal_smooth']}
     
     if not parallel:
-
-        pool = mp.Pool(processes=params['gencal_cpus'])
-
-        for refid in reference_ids:
-            for ref_beam in params['ref_beams']:
-                for spw in params['gencal_spws']:
-
-                    tgt = target(refid, ref_beam, spw)
-                    out = output(refid, ref_beam, spw)
-                    
-                    pool.apply_async(gencal.main, args=(tgt, out), kwds=kwargs)
-
-        pool.close()
-        pool.join()
-
-    else:
-
         for refid in reference_ids:
             for ref_beam in params['ref_beams']:
                 for spw in params['gencal_spws']:
@@ -223,6 +204,19 @@ def _gencal(output_dir, target_id, xcorr_dt, reference_ids, params, parallel, ve
                     out = output(refid, ref_beam, spw)
 
                     gencal.main(tgt, out, **kwargs)
+    else:
+        pool = mp.Pool(processes=params['gencal_cpus'])
+        for refid in reference_ids:
+            for ref_beam in params['ref_beams']:
+                for spw in params['gencal_spws']:
+
+                    tgt = target(refid, ref_beam, spw)
+                    out = output(refid, ref_beam, spw)
+                    
+                    pool.apply_async(gencal.main, args=(tgt, out), kwds=kwargs)
+        pool.close()
+        pool.join()
+
 
 def _applycal(output_dir, target_id, xcorr_dt, params, reference_ids, parallel, verbose=False):
     if verbose: 
@@ -232,9 +226,20 @@ def _applycal(output_dir, target_id, xcorr_dt, params, reference_ids, parallel, 
     output = lambda ref, refbm, beam, spw: f'{output_dir}{target_id}_xcorr/{ref}/{refbm}/SAP000_B{beam:03d}_P000_spw{spw}_avg{xcorr_dt}_cal.h5'
 
     if not parallel:
+        for refid in reference_ids:
+            for ref_beam in params['ref_beams']:
+                for spw in params['applycal_spws']:
 
+                    solutions_file = f'{output_dir}{target_id}_xcorr/{refid}/{ref_beam}/SAP000_B000_P000_spw{spw}_avg{xcorr_dt}_sol.h5'
+
+                    for beam in params['applycal_beams']:
+
+                        tgt = target(refid, ref_beam, beam, spw)
+                        out = output(refid, ref_beam, beam, spw)
+
+                        applycal.main(solutions_file, tgt, out)
+    else:
         pool = mp.Pool(processes=params['applycal_cpus'])
-
         for refid in reference_ids:
             for ref_beam in params['ref_beams']:
                 for spw in params['applycal_spws']:
@@ -248,24 +253,8 @@ def _applycal(output_dir, target_id, xcorr_dt, params, reference_ids, parallel, 
 
                         pool.apply_async(applycal.main,
                                             args=(solutions_file, tgt, out))
-
         pool.close()
         pool.join()
-
-    else:
-
-        for refid in reference_ids:
-            for ref_beam in params['ref_beams']:
-                for spw in params['applycal_spws']:
-
-                    solutions_file = f'{output_dir}{target_id}_xcorr/{refid}/{ref_beam}/SAP000_B000_P000_spw{spw}_avg{xcorr_dt}_sol.h5'
-
-                    for beam in params['applycal_beams']:
-
-                        tgt = target(refid, ref_beam, beam, spw)
-                        out = output(refid, ref_beam, beam, spw)
-
-                        applycal.main(solutions_file, tgt, out)
 
 def _clip(output_dir, target_id, reference_ids, xcorr_dt, params, parallel):
 
@@ -275,24 +264,6 @@ def _clip(output_dir, target_id, reference_ids, xcorr_dt, params, parallel):
     kwargs = {'threshold': params['clip_threshold']}
 
     if not parallel:
-
-        pool = mp.Pool(processes=params['clip_cpus'])
-
-        for refid in reference_ids:
-            for ref_beam in params['ref_beams']:
-                for spw in params['clip_spws']:
-                    for beam in params['clip_beams']:
-                    
-                        tgt = target(refid, ref_beam, beam, spw)
-                        out = output(refid, ref_beam, beam, spw)
-
-                        pool.apply_async(clip.abs_clip_vis, args=(tgt, out), kwds=kwargs)
-
-        pool.close()
-        pool.join()
-
-    else:
-
         for refid in reference_ids:
             for ref_beam in params['ref_beams']:
                 for spw in params['clip_spws']:
@@ -302,6 +273,19 @@ def _clip(output_dir, target_id, reference_ids, xcorr_dt, params, parallel):
                         out = output(refid, ref_beam, beam, spw)
 
                         clip.abs_clip_vis(tgt, out, **kwargs)
+    else:
+        pool = mp.Pool(processes=params['clip_cpus'])
+        for refid in reference_ids:
+            for ref_beam in params['ref_beams']:
+                for spw in params['clip_spws']:
+                    for beam in params['clip_beams']:
+                    
+                        tgt = target(refid, ref_beam, beam, spw)
+                        out = output(refid, ref_beam, beam, spw)
+
+                        pool.apply_async(clip.abs_clip_vis, args=(tgt, out), kwds=kwargs)
+        pool.close()
+        pool.join()
 
 def _average_t(output_dir, target_id, average_t_dt, reference_ids, xcorr_dt, params, parallel):
     target = lambda ref, refbm, beam, spw: f'{output_dir}{target_id}_xcorr/{ref}/{refbm}/SAP000_B{beam:03d}_P000_spw{spw}_avg{xcorr_dt}_cal_clip.h5'
@@ -311,24 +295,6 @@ def _average_t(output_dir, target_id, average_t_dt, reference_ids, xcorr_dt, par
                 'weighted': params['average_t_weighted']}
 
     if not parallel:
-
-        pool = mp.Pool(processes=params['average_t_cpus'])
-
-        for refid in reference_ids:
-            for ref_beam in params['ref_beams']:
-                for spw in params['average_t_spws']:
-                    for beam in params['average_t_beams']:
-
-                        tgt = target(refid, ref_beam, beam, spw)
-                        out = output(refid, ref_beam, beam, spw)
-
-                        pool.apply_async(average.time_average_vis, args=(tgt, out), kwds=kwargs)
-
-        pool.close()
-        pool.join()
-
-    else:
-
         for refid in reference_ids:
             for ref_beam in params['ref_beams']:
                 for spw in params['average_t_spws']:
@@ -338,6 +304,19 @@ def _average_t(output_dir, target_id, average_t_dt, reference_ids, xcorr_dt, par
                         out = output(refid, ref_beam, beam, spw)
 
                         average.time_average_vis(tgt, out, **kwargs)
+    else:
+        pool = mp.Pool(processes=params['average_t_cpus'])
+        for refid in reference_ids:
+            for ref_beam in params['ref_beams']:
+                for spw in params['average_t_spws']:
+                    for beam in params['average_t_beams']:
+
+                        tgt = target(refid, ref_beam, beam, spw)
+                        out = output(refid, ref_beam, beam, spw)
+
+                        pool.apply_async(average.time_average_vis, args=(tgt, out), kwds=kwargs)
+        pool.close()
+        pool.join()
 
 def _to_uvhol(output_dir, target_id, xcorr_dt, average_t_dt, reference_ids, params, parallel):
     target = lambda ref, refbm, spw: f'{output_dir}{target_id}_xcorr/{ref}/{refbm}/SAP000_B*_P000_spw{spw}_avg{xcorr_dt}_cal_clip_avg{average_t_dt}.h5'
@@ -346,7 +325,18 @@ def _to_uvhol(output_dir, target_id, xcorr_dt, average_t_dt, reference_ids, para
     logger = logging.getLogger(__name__)
 
     if not parallel:
+        for refid in reference_ids:
+            for ref_beam in params['ref_beams']:
+                for spw in params['to_uvhol_spws']:
 
+                    tgt = target(refid, ref_beam, spw)
+                    out = output(refid, ref_beam, spw)
+
+                    tgt_list = glob.glob(tgt)
+                    misc.natural_sort(tgt_list)
+                    
+                    to_uvhol.main(tgt_list, out)
+    else:
         pool = mp.Pool(processes=params['to_uvhol_cpus'])
 
         for refid in reference_ids:
@@ -364,20 +354,6 @@ def _to_uvhol(output_dir, target_id, xcorr_dt, average_t_dt, reference_ids, para
 
         pool.close()
         pool.join()
-
-    else:
-
-        for refid in reference_ids:
-            for ref_beam in params['ref_beams']:
-                for spw in params['to_uvhol_spws']:
-
-                    tgt = target(refid, ref_beam, spw)
-                    out = output(refid, ref_beam, spw)
-
-                    tgt_list = glob.glob(tgt)
-                    misc.natural_sort(tgt_list)
-                    
-                    to_uvhol.main(tgt_list, out)
 
 def _average_uvhol(output_dir, target_id, xcorr_dt, average_t_dt, params, reference_ids):
     for pol in params['average_uvhol_pols']:
