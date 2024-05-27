@@ -26,11 +26,11 @@ def cross_correlate_jit(dt, dr, dt_j:int, dr_i:int, dr_k:int, ch0:int, chf:int):
 def cross_correlate_basic(dt, dr, dt_j:int, dr_i:int, dr_k:int, ch0:int, chf:int):
     return dt[:,dt_j,ch0:chf] * np.conj( dr[dr_i,:,dr_k,ch0:chf] )
 
-def cross_correlate(dt, dr, dt_j:int, dr_i:int, dr_k:int, ch0:int, chf:int):
-    if has_numba:
-        cross_correlate_jit(dt, dr, dt_j, dr_i, dr_k, ch0, chf)
+def cross_correlate(dt, dr, dt_j:int, dr_i:int, dr_k:int, ch0:int, chf:int, parallel, use_numba=False):
+    if has_numba and (not parallel or use_numba):
+        return cross_correlate_jit(dt, dr, dt_j, dr_i, dr_k, ch0, chf)
     else:
-        cross_correlate_basic(dt, dr, dt_j, dr_i, dr_k, ch0, chf)
+        return cross_correlate_basic(dt, dr, dt_j, dr_i, dr_k, ch0, chf)
 
 # @jit([(complex64, int64)])
 def fast_average(xcorr, averaging_factor):
@@ -202,7 +202,7 @@ def initialize(ibm, spw, refid, ref_beam):
 
         return xcorr, radec, dt, beam_info
 
-def main(target, reference, output, target_time_res=0, rfiflag=False, edges=0.25, rfi_output='', rfi_kwargs={}):
+def main(target, reference, output, target_time_res=0, rfiflag=False, edges=0.25, rfi_output='', rfi_kwargs={}, parallel=True, use_numba=False):
     """
     Cross correlates the target data observed with the tied array with that stored in the reference observation.
     It will remove edge channels, cross-correlate, average in time and perform rfi flagging on the data.
@@ -264,10 +264,10 @@ def main(target, reference, output, target_time_res=0, rfiflag=False, edges=0.25
     # xcorr[:,:,0,1] = dt[:,0,ch0:chf]*np.conj(dr[0,:,1,ch0:chf])  # XY
     # xcorr[:,:,1,0] = dt[:,1,ch0:chf]*np.conj(dr[0,:,0,ch0:chf])  # YX
     # xcorr[:,:,1,1] = dt[:,1,ch0:chf]*np.conj(dr[0,:,1,ch0:chf])  # YY
-    xcorr[:,:,0,0] = cross_correlate(dt[:], dr, 0, 0, 0, ch0, chf)  # XX
-    xcorr[:,:,0,1] = cross_correlate(dt[:], dr, 0, 0, 1, ch0, chf)  # XY
-    xcorr[:,:,1,0] = cross_correlate(dt[:], dr, 1, 0, 0, ch0, chf)  # YX
-    xcorr[:,:,1,1] = cross_correlate(dt[:], dr, 1, 0, 1, ch0, chf)  # YY
+    xcorr[:,:,0,0] = cross_correlate(dt[:], dr, 0, 0, 0, ch0, chf, parallel, use_numba)  # XX
+    xcorr[:,:,0,1] = cross_correlate(dt[:], dr, 0, 0, 1, ch0, chf, parallel, use_numba)  # XY
+    xcorr[:,:,1,0] = cross_correlate(dt[:], dr, 1, 0, 0, ch0, chf, parallel, use_numba)  # YX
+    xcorr[:,:,1,1] = cross_correlate(dt[:], dr, 1, 0, 1, ch0, chf, parallel, use_numba)  # YY
 
     # Averaging.
     if target_time_res > 0:

@@ -48,6 +48,7 @@ def plot_phase_beam(beam_data_files_func, outplot, spws, refs, ref_beams):
         for r,ref in enumerate(refs):
             for ref_beam in ref_beams:
                 tf = beam_data_files_func(ref, ref_beam, spw)
+                print (tf)
                 logger.info('Reading file: {0} .'.format(tf))
 
                 fth5 = h5py.File(tf, 'r')
@@ -59,9 +60,12 @@ def plot_phase_beam(beam_data_files_func, outplot, spws, refs, ref_beams):
                 # dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data').value, dtype=np.complex64)
                 # st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma').value, dtype=np.complex64)
                 # ft = np.array(fth5['/{0}/FLAG'.format(beams[0])].get('flag').value, dtype=np.bool)
-                dt = np.array(fth5['/{0}/DATA'.format(beams[0])].get('data'), dtype=np.complex64)
-                st = np.array(fth5['/{0}/SIGMA'.format(beams[0])].get('sigma'), dtype=np.complex64)
-                ft = np.array(fth5['/{0}/FLAG'.format(beams[0])].get('flag'), dtype=np.bool)
+                # dt = np.array(fth5[f'/{beams[0]}/DATA'].get('data'), dtype=np.complex64)
+                # st = np.array(fth5[f'/{beams[0]}/SIGMA'].get('sigma'), dtype=np.complex64)
+                # ft = np.array(fth5[f'/{beams[0]}/FLAG'].get('flag'), dtype=np.bool)\
+                dt = fth5[f'/{beams[0]}/DATA'].get('data')[:]
+                st = fth5[f'/{beams[0]}/SIGMA'].get('sigma')[:]
+                ft = fth5[f'/{beams[0]}/FLAG'].get('flag')[:]
 
                 # Apply flags to the data.
                 dt = np.ma.masked_where(ft, dt)
@@ -101,6 +105,8 @@ def plot_phase_beam(beam_data_files_func, outplot, spws, refs, ref_beams):
             ax.legend(loc=0, fancybox=True)
 
     #fig.tight_layout()
+    logger.info(f'Saving to {outplot}')
+    print(f'Saving to {outplot}')
     plt.savefig(outplot, bbox_inches='tight')
     plt.close()
 

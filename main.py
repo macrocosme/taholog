@@ -227,6 +227,14 @@ if __name__ == '__main__':
               'order_sols_degree': order_sols_degree,
               'plot_report_output': plot_report_output}
 
+    if verbose:
+        print ('--')
+        print ('kwargs:')
+        print (kwargs)
+        print ()
+        print ('--')
+        print ('---')
+
     formatter = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(filename=logfile, filemode='a', level=logging.DEBUG, format=formatter)
     logger = logging.getLogger(__name__)

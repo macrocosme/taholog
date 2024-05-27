@@ -88,7 +88,7 @@ def run_pipeline(params, verbose=False):
         procs._xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, parallel, verbose)
 
     if 'plot_beam' in steps:
-        procs._plot_beam(params, verbose)
+        procs._plot_beam(output_dir, params, verbose)
 
     if 'gencal' in steps:
         procs._gencal(output_dir, target_id, xcorr_dt, reference_ids, params, parallel, verbose)

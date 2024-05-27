@@ -450,5 +450,5 @@ def main(input_file, output_base, current_dir, nchan=64, npols=2, nfiles=4, polm
                  beam_data, spw, nchan, nspec, npols, polmap, ntime, smplr, 
                  to_disk, use_pyfftw, use_gpu)
 
-    logger.info('Processed file {0} in {1}'.format(input_file.split('/')[-1], datetime.now() - start_time))
+    logger.info(f"Processed file {input_file.split('/')[-1]} in {datetime.now() - start_time}")
 

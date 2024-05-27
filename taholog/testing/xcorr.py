@@ -40,12 +40,12 @@ ncpus = 16
 n_gpu_devices = 2
 
 # Let's override these for cross-correlation
-def call_func(func, dt, dr, i, j, k, ch0, chf):
-    return func(dt, dr, i, j, k, ch0, chf)
+def call_func(func, dt, dr, i, j, k, ch0, chf, parallel, use_numba):
+    return func(dt, dr, i, j, k, ch0, chf, parallel, use_numba)
 
-def time_func(func, dt, dr, i, j, k, ch0, chf):
+def time_func(func, dt, dr, i, j, k, ch0, chf, parallel, use_numba):
     start_time = datetime.now()
-    call_func(func, dt, dr, i, j, k, ch0, chf)
+    call_func(func, dt, dr, i, j, k, ch0, chf, parallel, use_numba)
     return datetime.now() - start_time
 
 
@@ -145,10 +145,16 @@ if continuing:
     #                 xcorr, radec, tgt_freq, ref_freq, dr, dt, ntimes, nchans, ch0, chf, beam_info = initialize(ibm, spw, refid, ref_beam)
 
     print ('cross_correlate')
-    print (time_func(cross_correlate, dt[:], dr, 0, 0, 0, ch0, chf))
+    print (time_func(cross_correlate, dt[:], dr, 0, 0, 0, ch0, chf, True, False))
     
     print ('cross_correlate_jit')
-    print (time_func(cross_correlate_jit, dt[:], dr[:], 0, 0, 0, ch0, chf))
+    print (time_func(cross_correlate, dt[:], dr, 0, 0, 0, ch0, chf, False, True))
+
+    print ('cross_correlate parallel jit')
+    print (time_func(cross_correlate, dt[:], dr, 0, 0, 0, ch0, chf, True, True))
+    
+    print ('cross_correlate')
+    print (time_func(cross_correlate, dt[:], dr, 0, 0, 0, ch0, chf, False, False))
     
     # fr.close() 
     # ft.close() 
