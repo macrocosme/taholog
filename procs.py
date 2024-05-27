@@ -87,8 +87,7 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
                          params['to_freq_cpus'],
                          params['to_disk'], 
                          params['use_pyfftw'], 
-                         params['use_gpu'],
-                         params['use_numba'])
+                         params['use_gpu'])
     else:
         logger.info(f"Multiprocessing: {params['to_freq_cpus']} processes.")
         pool = mp.Pool(processes=params['to_freq_cpus'])
@@ -105,8 +104,7 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
                                 params['to_freq_cpus'],
                                 params['to_disk'], 
                                 params['use_pyfftw'], 
-                                params['use_gpu'],
-                                params['use_numba']
+                                params['use_gpu']
                             ))
         pool.close()
         pool.join()
@@ -148,7 +146,8 @@ def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, paral
               'rfiflag': params['xcorr_rfiflag'],
               'edges': params['xcorr_edges'],
               'rfi_kwargs': rfi_kwargs, 
-              'parallel': parallel}
+              'parallel': parallel,
+              'use_numba': params['use_numba']}
 
     if not parallel:
         for refid in reference_ids:
