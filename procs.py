@@ -149,6 +149,16 @@ def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, paral
               'parallel': parallel,
               'use_numba': params['use_numba']}
 
+    def redo_missing(refid, ref_beam, spw, ibm):
+        tgt = target(ibm, spw)
+        ref = refers(refid, ref_beam, spw)
+        out = output(refid, ref_beam, ibm, spw)
+        rfi = rfi_output(refid, ref_beam, ibm, spw)
+
+        kwargs['rfi_output'] = rfi
+
+        xcorr.main(tgt, ref, out, **kwargs)
+
     if not parallel:
         for refid in reference_ids:
             for ref_beam in params['ref_beams']:

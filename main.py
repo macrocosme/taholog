@@ -20,9 +20,8 @@ if __name__ == '__main__':
     #     print ('No input; defaulting to L658158')\
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--steps", nargs='+', type=str, default=['to_freq','xcorr', 'plot_beam', 'gencal', 
-                                                                       'applycal', 'clip', 'average_t', 'to_uvhol', 
-                                                                       'average_uvhol', 'solve_uvhol', 'order_sols', 
+    parser.add_argument("-s", "--steps", nargs='+', type=str, default=['to_freq','xcorr', 'plot_beam', 
+                                                                       'gencal', 'applycal', 'clip', 'average_t', 'to_uvhol', 'average_uvhol', 'solve_uvhol', 'order_sols', 
                                                                        'plot_report'],
                         help="Steps to be run")
     parser.add_argument("-p", "--parallel", action=argparse.BooleanOptionalAction, help = "Debug: run steps without multiprocessing to get back all the error messages?")
@@ -35,13 +34,15 @@ if __name__ == '__main__':
     parser.add_argument("-d", "--to_disk", action=argparse.BooleanOptionalAction, help="Save to disk as HDF5")
     parser.add_argument("-gpu", "--use_gpu", action=argparse.BooleanOptionalAction, help="Use GPU(s)")
     parser.add_argument("-pyfftw", "--use_pyfftw", action=argparse.BooleanOptionalAction, help="Use pyfftw; if False, uses numpy")
+    parser.add_argument("-numba", "--use_numba", action=argparse.BooleanOptionalAction, help = "Use numba: if False, runs default single-threaded python")
 
     # Read arguments from command line
     args = parser.parse_args()
-    parallel = args.parallel
-    to_disk = args.to_disk
-    use_gpu = args.use_gpu
-    use_pyfftw = args.use_pyfftw
+    parallel = args.parallel if args.parallel is not None else False
+    to_disk = args.to_disk if args.to_disk is not None else False
+    use_gpu = args.use_gpu if args.use_gpu is not None else False
+    use_pyfftw = args.use_pyfftw if args.use_pyfftw is not None else False
+    use_numba = args.use_numba if args.use_numba is not None else False
     verbose = args.verbose
 
     print(f'parallel:{parallel}, verbose:{verbose}, to_disk:{to_disk}, use_gpu:{use_gpu}, use_pyfftw:{use_pyfftw}')
@@ -91,7 +92,8 @@ if __name__ == '__main__':
     xcorr_rfiflag = True
     xcorr_flagging_threshold = 2.0      # Data is flagged if above this time the local rms.
     xcorr_threshold_shrink_power = 0.05 # How big are the regions where the local rms is computed.
-    xcorr_cpus = 12
+    # xcorr_cpus = 12
+    xcorr_cpus = 16
 
     # plot_beam options.
     # Will produce a plot of the phase of a beam for every refernce station and spectral window.
@@ -177,6 +179,7 @@ if __name__ == '__main__':
               'spws': spws,
               'logfile': logfile,
               'parallel': parallel,
+              'use_numba': use_numba,
               'to_disk': to_disk,
               'use_gpu': use_gpu,
               'use_pyfftw': use_pyfftw,
@@ -226,14 +229,6 @@ if __name__ == '__main__':
               'order_sols_phase_reference_station': order_sols_phase_reference_station,
               'order_sols_degree': order_sols_degree,
               'plot_report_output': plot_report_output}
-
-    if verbose:
-        print ('--')
-        print ('kwargs:')
-        print (kwargs)
-        print ()
-        print ('--')
-        print ('---')
 
     formatter = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(filename=logfile, filemode='a', level=logging.DEBUG, format=formatter)

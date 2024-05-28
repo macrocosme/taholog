@@ -147,6 +147,8 @@ def save_hdf5(output, data, sigma, freq, beam_info, target_head, reference_anten
             logger.warning('header keyword: "sample_rate_hz" not present.')
             f.attrs['sample_rate_hz'] = np.nan
 
+    logger.info(f'Saving: {output}')
+
     # Close file. 
     f.close()
 

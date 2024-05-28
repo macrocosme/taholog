@@ -17,6 +17,8 @@ import multiprocessing as mp
 from cProfile import Profile
 from pstats import SortKey, Stats
 
+from taholog.testing.checks import check_channelized_file_count, check_correlated_file_count
+
 import matplotlib
 matplotlib.use('Agg')
 
@@ -56,36 +58,21 @@ def run_pipeline(params, verbose=False):
 
     if 'to_freq' in steps:
         procs._to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, num_pol, polmap, logger, parallel, verbose)
-
-    # From here we will work in the output directory
-    os.chdir(output_dir)
-
-    logger.info('Checking that there are enough output files.')
-    if verbose: 
-        print ('Checking that there are enough output files.')
-    for ref in reference_ids: 
-        for beam in params['ref_beams']:
-            # all_files = glob.glob(f'{output_dir}{ref}/{cs_str}/*spw*.h5')
-            all_files = glob.glob(f'{output_dir}{ref}/{beam}/*spw*.h5')
-            if len(all_files) != params['spws']:
-                logger.error(f'The number of channelized files is different than expected for reference: {ref}, beam: {beam}')
-                logger.error('Will not continue.')
-                logger.error(f"{len(all_files)} != {params['spws']}")
-                sys.exit(1)   
-    # all_files = glob.glob(f'{output_dir}{target_id}/{cs_str}/*spw*.h5')
-    all_files = glob.glob(f'{output_dir}{target_id}/*spw*.h5')
-    if len(all_files) != params['target_beams']*params['spws']:
-        logger.error('The number of channelized files is different than expected for reference: {0}'.format(ref))
-        logger.error('Will not continue.')
-        sys.exit(1)
- 
-    logger.info('The number of channelized files is as expected. Continuing...')
-
+    check_channelized_file_count(logger, output_dir, target_id, reference_ids, params, verbose)
 
     xcorr_dt = params['xcorr_dt']
+    logger.info(f'xcorr_dt: {xcorr_dt}')
     if 'xcorr' in steps:
         # procs._xcorr(output_dir, cs_str, target_id, reference_ids, params, parallel, verbose)
         procs._xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, parallel, verbose)
+    
+    _continue, missing = check_correlated_file_count(logger, output_dir, target_id, reference_ids, xcorr_dt, params, verbose, return_missing=True)
+    while not _continue:
+        logger.info(f're-running xcorr on {missing}')
+        for m in missing:
+            refid, ref_beam, spw, ibm = m
+            procs._xcorr.redo_missing(refid, ref_beam, spw, ibm)
+        _continue, missing = check_correlated_file_count(logger, output_dir, target_id, reference_ids, xcorr_dt, params, verbose, return_missing=True)
 
     if 'plot_beam' in steps:
         procs._plot_beam(output_dir, params, verbose)
