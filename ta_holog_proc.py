@@ -59,6 +59,7 @@ def run_pipeline(params, verbose=False):
     if 'to_freq' in steps:
         procs._to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, num_pol, polmap, logger, parallel, verbose)
     check_channelized_file_count(logger, output_dir, target_id, reference_ids, params, verbose)
+    # Should also add a similar function as for xcorr where in case of missing files, re-run them and continue.
 
     xcorr_dt = params['xcorr_dt']
     logger.info(f'xcorr_dt: {xcorr_dt}')
@@ -67,11 +68,24 @@ def run_pipeline(params, verbose=False):
         procs._xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, parallel, verbose)
     
     _continue, missing = check_correlated_file_count(logger, output_dir, target_id, reference_ids, xcorr_dt, params, verbose, return_missing=True)
+    # TODO: Should consider a way to exit the loop in case infini-loop is in action...
     while not _continue:
         logger.info(f're-running xcorr on {missing}')
+        # if not parallel:
         for m in missing:
             refid, ref_beam, spw, ibm = m
-            procs._xcorr.redo_missing(refid, ref_beam, spw, ibm)
+            xcorr_output_dir = f'{output_dir}{target_id}_xcorr'
+            procs._redo_missing_xcorr(output_dir, xcorr_output_dir, target_id, params, xcorr_dt, refid, ref_beam, spw, ibm)
+        # TODO: Parallel processing for these missing files would make sense, but doesn't currently work. I have not investigated.
+        # else:
+        #     pool = mp.Pool(processes=params['xcorr_cpus'])
+        #     for m in missing:
+        #         refid, ref_beam, spw, ibm = m
+        #         xcorr_output_dir = f'{output_dir}{target_id}_xcorr'
+        #         pool.apply_async(procs._redo_missing_xcorr, args=(output_dir, xcorr_output_dir, target_id, params, xcorr_dt, refid, ref_beam, spw, ibm))
+        #     pool.close()
+        #     pool.join()
+
         _continue, missing = check_correlated_file_count(logger, output_dir, target_id, reference_ids, xcorr_dt, params, verbose, return_missing=True)
 
     if 'plot_beam' in steps:

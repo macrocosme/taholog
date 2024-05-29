@@ -166,16 +166,6 @@ def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, paral
               'parallel': parallel,
               'use_numba': params['use_numba']}
 
-    def redo_missing(refid, ref_beam, spw, ibm):
-        tgt = target(ibm, spw)
-        ref = refers(refid, ref_beam, spw)
-        out = output(refid, ref_beam, ibm, spw)
-        rfi = rfi_output(refid, ref_beam, ibm, spw)
-
-        kwargs['rfi_output'] = rfi
-
-        xcorr.main(tgt, ref, out, **kwargs)
-
     if not parallel:
         for refid in reference_ids:
             for ref_beam in params['ref_beams']:
@@ -207,7 +197,35 @@ def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, paral
                         pool.apply_async(xcorr.main, args=(tgt, ref, out), kwds=kwargs)
         pool.close()
         pool.join()
-        
+
+def _redo_missing_xcorr(output_dir, xcorr_output_dir, target_id, params, xcorr_dt, refid, ref_beam, spw, ibm):
+    target = lambda _ibm, _spw: f'{output_dir}{target_id}/{target_id}_SAP000_B{_ibm:03d}_P000_bf_spw{_spw}.h5' 
+    refers = lambda _ref, _refbm, _spw: f'{output_dir}{_ref}/{_refbm}/{_ref}_SAP000_B000_P000_bf_spw{_spw}.h5' 
+    output = lambda _ref, _refbm, _ibm, _spw: f'{xcorr_output_dir}/{_ref}/{_refbm}/SAP000_B{_ibm:03d}_P000_spw{_spw}_avg{xcorr_dt}.h5' 
+    rfi_output = lambda _ref, _refbm, _ibm, _spw: f'{xcorr_output_dir}/{_ref}/{_refbm}/SAP000_B{_ibm:03d}_P000_spw{_spw}_rfiflags.h5'
+
+    tgt = target(int(ibm), spw)
+    ref = refers(refid, ref_beam, spw)
+    out = output(refid, ref_beam, int(ibm), spw)
+    rfi = rfi_output(refid, ref_beam, int(ibm), spw)
+
+    rfi_kwargs = {'flagging_threshold': params['xcorr_flagging_threshold'],
+                  'threshold_shrink_power': params['xcorr_threshold_shrink_power'],
+                  'ext_time_percent': 0.5,
+                  'ext_freq_percent': 0.5,
+                  'n_rfi_max': 1}
+
+    kwargs = {'target_time_res': xcorr_dt,
+              'rfiflag': params['xcorr_rfiflag'],
+              'edges': params['xcorr_edges'],
+              'rfi_kwargs': rfi_kwargs, 
+              'parallel': params['parallel'],
+              'use_numba': params['use_numba']}
+
+    kwargs['rfi_output'] = rfi
+
+    xcorr.main(tgt, ref, out, **kwargs)
+
 def _plot_beam(output_dir, params, verbose=False):
     if verbose: 
         print ('plot_beam')

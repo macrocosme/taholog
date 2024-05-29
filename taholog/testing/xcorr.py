@@ -60,8 +60,6 @@ for ref in reference_ids:
         continuing = len(all_files) == spws
 
 if continuing:
-    print ('All good')
-
     edges=0.25
     xcorr_output_dir = f'{output_dir}{target_id}_xcorr'
 
