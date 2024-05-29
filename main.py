@@ -155,7 +155,7 @@ if __name__ == '__main__':
     order_sols_degree = 1 # Polynomial order used when fitting the phase as a unction of frequency. Use 1.
 
     # plot_report step options.
-    plot_report_output = lambda pol: 'taholog_report_{0}_{1}.pdf'.format(target_id, pol)
+    plot_report_output = lambda pol: f'taholog_report_{target_id}_{pol}.pdf'
 
     # After each step a new file will be created.
     # For to_freq the new files will be in trunkdir/<SAS id>.

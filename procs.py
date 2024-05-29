@@ -37,11 +37,6 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
         Whether or not to run in parallel
     verbose: bool
         Print extra information to stdout
-
-    Returns
-    -------
-    
-
     """
 
     # Reference stations.
@@ -113,6 +108,28 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
     logger.info('Finished with to_freq step.')
 
 def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, parallel, verbose=False):
+    """ Correlate all spectral windows between all referece stations and the target station
+
+    Parameters
+    ----------
+    output_dir: str
+        Output directory
+    cs_str: str
+        Sub-folder string for original data
+    reference_ids: list
+        Reference stations ID(s)
+    target_id: str
+        Target ID
+    xcorr_dt: float
+        Averaging factor
+    params: dict
+        Parameters sent to the main function
+    parallel: bool
+        Process data on multiple CPUs using multiprocessing
+    verbose: bool (default: False)
+        Print extra information to stdout (other than log file)
+    """
+
     if verbose: 
         print ('xcorr')
         print ('Make output directories if necessary. _xcorr')
