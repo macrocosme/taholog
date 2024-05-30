@@ -9,15 +9,6 @@ except ImportError:
     has_pyfftw = False
 
 try:
-    from numba import (
-        jit, cuda, prange, typeof,
-        float32, float64, complex64, int64, boolean
-    )
-    has_numba_cuda = True
-except ImportError: 
-    has_numba_cuda = False
-
-try:
     import cupy as cp
     has_cupy = True
     cp.fft.config.use_multi_gpus = True
@@ -76,7 +67,7 @@ def fft_pyfftw(data, nspec, npol, nchan, polmap, threads=1):
     return fftdata
 
 def fft_cupy(cpu_data, nspec, npol, nchan, polmap, device=0):
-    logger = logging.getLogger(__name__)
+    # logger = logging.getLogger(__name__)
 
     mempool = cp.get_default_memory_pool()
     pinned_mempool = cp.get_default_pinned_memory_pool()
@@ -85,11 +76,11 @@ def fft_cupy(cpu_data, nspec, npol, nchan, polmap, device=0):
         # CPU to GPU
         gpu_data = cp.array(cpu_data.reshape(nspec, nchan, polmap.size), dtype=np.float64)    
 
-        logger.info(f'CPU/GPU allocation')
-        logger.info(gpu_data.nbytes, gpu_fftdata.nbytes)
-        logger.info(mempool.used_bytes())               
-        logger.info(mempool.total_bytes())              
-        logger.info(pinned_mempool.n_free_blocks())     
+        # logger.info(f'CPU/GPU allocation')
+        # logger.info(f'gpu_data: {gpu_data.nbytes} bytes, gpu_fftdata: {gpu_fftdata.nbytes} bytes') 
+        # logger.info(f'mempool.used_bytes(): {mempool.used_bytes()}')
+        # logger.info(f'mempool.total_bytes(): {mempool.total_bytes()}')
+        # logger.info(f'pinned_mempool.n_free_blocks(): {pinned_mempool.n_free_blocks()}')
 
         for p in range(npol):  # X Y
             if len(polmap[p]) == 2:
@@ -105,12 +96,6 @@ def fft_cupy(cpu_data, nspec, npol, nchan, polmap, device=0):
 
         # GPU back to CPU 
         cpu_fftdata = cp.asnumpy(gpu_fftdata)
-
-        logger.info(f'CPU/GPU final usage')
-        logger.info(gpu_data.nbytes, gpu_fftdata.nbytes) 
-        logger.info(mempool.used_bytes())                
-        logger.info(mempool.total_bytes())               
-        logger.info(pinned_mempool.n_free_blocks())      
 
     return cpu_fftdata
 

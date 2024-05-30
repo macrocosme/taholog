@@ -8,28 +8,18 @@ import multiprocessing as mp
 
 try:
     import pyfftw
-    has_pyfftw = True
-    # has_pyfftw = False
+    HAS_PYFFTW = True
 except ImportError:
-    has_pyfftw = False
-
-try:
-    from numba import (
-        jit, cuda, prange, typeof,
-        float32, float64, complex64, int64, boolean
-    )
-    has_numba_cuda = True
-except ImportError: 
-    has_numba_cuda = False
+    HAS_PYFFTW = False
 
 try:
     import cupy as cp
-    has_cupy = True
+    HAS_CUPY = True
     cp.fft.config.use_multi_gpus = True
     cp.fft.config.set_cufft_gpus([0, 1]) # Devices fixed for now; to be adjusted later.
 
 except ImportError: 
-    has_cupy = False
+    HAS_CUPY = False
 
 from .fft.fft import fft_cupy, fft_numpy, fft_pyfftw
 
@@ -199,9 +189,9 @@ def to_freq(data, nchan, nspec, npol, polmap, sample_rate, center_freq, use_pyff
     """     
     
     # FFT.
-    if has_cupy and use_cupy:
+    if HAS_CUPY and use_cupy:
         fftdata = fft_cupy(data, nspec, npol, nchan, polmap, device)
-    elif has_pyfftw and use_pyfftw:
+    elif HAS_PYFFTW and use_pyfftw:
         fftdata = fft_pyfftw(data, nspec, npol, nchan, polmap)
     else:
         fftdata = fft_numpy(data, nspec, npol, nchan, polmap)
@@ -226,10 +216,10 @@ def call_fft(ncpus, n_gpu_devices, input_file, output_base, beam, head, beam_dat
     if ncpus > 1 and use_gpu:
         p_info = mp.current_process()
         pid = p_info.pid
-        # use_cupy = pid % ncpus < n_gpu_devices
-        use_cupy = True
+        use_cupy = pid % ncpus < n_gpu_devices
+        # use_cupy = True
         # device = pid % ncpus if use_cupy else None
-        device = pid % n_gpu_devices
+        device = pid % ncpus
     elif ncpus > 1:
         use_cupy = False
         device = None

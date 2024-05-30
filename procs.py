@@ -107,7 +107,7 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
             
     logger.info('Finished with to_freq step.')
 
-def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, parallel, verbose=False):
+def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, verbose=False):
     """ Correlate all spectral windows between all referece stations and the target station
 
     Parameters
@@ -163,10 +163,10 @@ def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, paral
               'rfiflag': params['xcorr_rfiflag'],
               'edges': params['xcorr_edges'],
               'rfi_kwargs': rfi_kwargs, 
-              'parallel': parallel,
+              'parallel': params['parallel'],
               'use_numba': params['use_numba']}
 
-    if not parallel:
+    if not params['parallel']:
         for refid in reference_ids:
             for ref_beam in params['ref_beams']:
                 for spw in params['xcorr_spws']:

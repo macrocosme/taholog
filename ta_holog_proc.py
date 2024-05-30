@@ -4,6 +4,8 @@
 This script runs all the steps required to process raw voltage data into complex valued beam maps.
 It assumes that the data will be located in trunk_dir, and each observation (target and reference)
 will be in a separate directory named as their sasid.
+
+Edit (May 2024): reference stations observations can now also be included as individual beams under one sasid. 
 """
 
 import re
@@ -60,12 +62,13 @@ def run_pipeline(params, verbose=False):
         procs._to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, num_pol, polmap, logger, parallel, verbose)
     check_channelized_file_count(logger, output_dir, target_id, reference_ids, params, verbose)
     # Should also add a similar function as for xcorr where in case of missing files, re-run them and continue.
+    # Also, finding the reason of the failed jobs would render that extra step redundant.
+    # So far, to_freq seems to work just fine with (--parallel=True --no-use_numba --no-use_gpu --no-use_pyfftw --to_disk)
 
     xcorr_dt = params['xcorr_dt']
     logger.info(f'xcorr_dt: {xcorr_dt}')
     if 'xcorr' in steps:
-        # procs._xcorr(output_dir, cs_str, target_id, reference_ids, params, parallel, verbose)
-        procs._xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, parallel, verbose)
+        procs._xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, verbose)
     
     _continue, missing = check_correlated_file_count(logger, output_dir, target_id, reference_ids, xcorr_dt, params, verbose, return_missing=True)
     # TODO: Should consider a way to exit the loop in case infini-loop is in action...
