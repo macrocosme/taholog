@@ -12,19 +12,13 @@ from utils import check_slash
 
 
 if __name__ == '__main__':
-    # User input.
-    # target_id = 'L697741' # SAS id of the observation with the map (many rings)
-    # try:
-    #     target_id = sys.argv[0]
-    # except:
-    #     print ('No input; defaulting to L658158')\
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--steps", nargs='+', type=str, default=['to_freq','xcorr', 'plot_beam', 
                                                                        'gencal', 'applycal', 'clip', 'average_t', 'to_uvhol', 'average_uvhol', 'solve_uvhol', 'order_sols', 
                                                                        'plot_report'],
                         help="Steps to be run")
-    parser.add_argument("-p", "--parallel", action=argparse.BooleanOptionalAction, help = "Debug: run steps without multiprocessing to get back all the error messages?")
+    parser.add_argument("-p", "--parallel", action=argparse.BooleanOptionalAction, help = "Parallel: run steps with multiprocessing")
     parser.add_argument("-v", "--verbose", action=argparse.BooleanOptionalAction, help = "Verbose: print extra info about steps being run to terminal")
     parser.add_argument("-tid", "--target_id", type=str, default='L697741', help = "Observation SAS id")
     parser.add_argument("-rid", "--reference_ids", nargs='+', type=str, default=['L697733', 'L697735', 'L697737', 'L697739'], help="List of reference stations observations SAS ids")
@@ -36,6 +30,8 @@ if __name__ == '__main__':
     parser.add_argument("-pyfftw", "--use_pyfftw", action=argparse.BooleanOptionalAction, help="Use pyfftw; if False, uses numpy")
     parser.add_argument("-numba", "--use_numba", action=argparse.BooleanOptionalAction, help = "Use numba: if False, runs default single-threaded python")
 
+    parser.add_argument("-cpu", "--ncpus", type=int, default=2, help="Number of CPU cores to use when --parallel is used. (default: 2)")
+
     # Read arguments from command line
     args = parser.parse_args()
     parallel = args.parallel if args.parallel is not None else False
@@ -44,9 +40,11 @@ if __name__ == '__main__':
     use_pyfftw = args.use_pyfftw if args.use_pyfftw is not None else False
     use_numba = args.use_numba if args.use_numba is not None else False
     verbose = args.verbose
+    ncpus = args.ncpus
 
-    print(f'parallel:{parallel}, verbose:{verbose}, to_disk:{to_disk}, use_gpu:{use_gpu}, use_pyfftw:{use_pyfftw}')
-
+    if verbose:
+        print(f'parallel:{parallel}, verbose:{verbose}, to_disk:{to_disk}, use_gpu:{use_gpu}, use_pyfftw:{use_pyfftw}')
+    
     # Paper target: reference may not be the right ones, and if not, the right ones no longer exist on CEP4 nor on the LTA. 
     # target_id = 'L658168'#  'L658158'
     # reference_ids = 'L650495,L650499,L650493' #,L650491'
@@ -55,7 +53,6 @@ if __name__ == '__main__':
     target_id = args.target_id # SAS id of the observation with the map (many rings)
     reference_ids = args.reference_ids
 
-    # trunk_dir = '/data/scratch/holography/tutorial/data/new_holography_obs/hba_cs002/'
     trunk_dir = check_slash(args.input_dir)
     output_dir = check_slash(args.output_dir)
     target_beams = 169
@@ -63,7 +60,6 @@ if __name__ == '__main__':
     logfile = '../taholog_{0}.log'.format(target_id)
     
     cs_str = 'cs' # In CEP4 the files are stored in a CS directory.
-    # cs_str = '' 
     """
     When using the multiprocessing module, I cannot log the error messages that take place in a child process.
     So, e.g., if a file is missing during the xcorr step, the script will not stop and it will continue without
@@ -75,7 +71,9 @@ if __name__ == '__main__':
     to_freq_num_chan = 64  # Number of channels per spectra.
     to_freq_num_pol = 2    # Number of polarizations recorded by the backend.
     to_freq_num_files = 4  # Number of files across which the complex valued polarizations are spread, two for X two for Y.
-    to_freq_cpus = 16
+    # TODO: Pedro's code used to_freq_cpus and xcorr_cpus, both set to the same value. 
+    #       There may be reasons to keep these seperate? Else. it could be merged into `ncpus` only.
+    to_freq_cpus = ncpus
     to_freq_beams = range(0,target_beams)
 
     # Check if beams are included in a single reference id or not (not ideal)
@@ -92,8 +90,7 @@ if __name__ == '__main__':
     xcorr_rfiflag = True
     xcorr_flagging_threshold = 2.0      # Data is flagged if above this time the local rms.
     xcorr_threshold_shrink_power = 0.05 # How big are the regions where the local rms is computed.
-    # xcorr_cpus = 12
-    xcorr_cpus = 16
+    xcorr_cpus = ncpus
 
     # plot_beam options.
     # Will produce a plot of the phase of a beam for every refernce station and spectral window.

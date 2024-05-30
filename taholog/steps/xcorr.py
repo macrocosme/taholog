@@ -6,10 +6,13 @@ import logging
 import numpy as np
 try:
     from numba import (
-        vectorize, njit, jit, cuda, prange, typeof,
+        config, set_num_threads, vectorize, njit, jit, cuda, prange, typeof,
         float32, float64, complex64, int64, boolean
     )
     has_numba = True
+
+    config.THREADING_LAYER = 'threadsafe'
+    set_num_threads(2)  # drg23 has two threads per core  
 except ImportError: 
     has_numba = False
 
@@ -32,7 +35,6 @@ def cross_correlate(dt, dr, dt_j:int, dr_i:int, dr_k:int, ch0:int, chf:int, para
     else:
         return cross_correlate_basic(dt, dr, dt_j, dr_i, dr_k, ch0, chf)
 
-# @jit([(complex64, int64)])
 def fast_average(xcorr, averaging_factor):
     return np.average((xcorr).reshape((-1,averaging_factor,)+xcorr.shape[1:]), axis=1)
 
@@ -110,13 +112,9 @@ def save_hdf5(output, data, sigma, freq, beam_info, target_head, reference_anten
         f0 = f.create_group('0')
 
         a = f0.create_group('POINTING')
-        # a['beam_ref_radec'] = beam_info['beam_ref_radec'].value
-        # a['beam_pos_radec'] = beam_info['beam_pos_radec'].value
-        # a['beam_off_radec'] = beam_info['beam_off_radec'].value
         a.create_dataset('beam_ref_radec', data=beam_info['beam_ref_radec'])
         a.create_dataset('beam_pos_radec', data=beam_info['beam_pos_radec'])
         a.create_dataset('beam_off_radec', data=beam_info['beam_off_radec'])
-
 
         b = f0.create_group('DATA')
         b['data'] = data.filled(np.nan)
@@ -160,8 +158,6 @@ def initialize(ibm, spw, refid, ref_beam):
 
         kwargs['rfi_output'] = rfi
 
-        # xcorr.main(tgt, ref, out, **kwargs)
-
         ft = h5py.File(tgt, 'r')
         ht = ft.attrs
         beams = list(ft.keys())
@@ -190,13 +186,10 @@ def initialize(ibm, spw, refid, ref_beam):
         # Number of time slots, channels, jones matrix.
         xcorr = np.zeros((ntimes,)+(chf-ch0,)+(2,2), dtype=np.complex64)
         radec = np.zeros((2))
-        print('Data has a shape: {0}'.format(xcorr.shape))
 
         # Cross-correlate the data.
-        print('Will cross-correlate the data.')
 
         # Load target data. Only one beam per file.
-        # dt = ft['/{0}/DATA'.format(beams[0])].get('data').value
         dt = ft['/{0}/DATA'.format(beams[0])].get('data')
 
         # Where are we looking at?
@@ -255,17 +248,12 @@ def main(target, reference, output, target_time_res=0, rfiflag=False, edges=0.25
     logger.info('Will cross-correlate the data.')
 
     # Load target data. Only one beam per file.
-    # dt = ft['/{0}/DATA'.format(beams[0])].get('data').value
     dt = ft['/{0}/DATA'.format(beams[0])].get('data')
 
     # Where are we looking at?
     beam_info = ft['/{0}/POINTING'.format(beams[0])]
 
     # Cross-correlate: target voltage times complex conjugate of reference voltage.
-    # xcorr[:,:,0,0] = dt[:,0,ch0:chf]*np.conj(dr[0,:,0,ch0:chf])  # XX
-    # xcorr[:,:,0,1] = dt[:,0,ch0:chf]*np.conj(dr[0,:,1,ch0:chf])  # XY
-    # xcorr[:,:,1,0] = dt[:,1,ch0:chf]*np.conj(dr[0,:,0,ch0:chf])  # YX
-    # xcorr[:,:,1,1] = dt[:,1,ch0:chf]*np.conj(dr[0,:,1,ch0:chf])  # YY
     xcorr[:,:,0,0] = cross_correlate(dt[:], dr, 0, 0, 0, ch0, chf, parallel, use_numba)  # XX
     xcorr[:,:,0,1] = cross_correlate(dt[:], dr, 0, 0, 1, ch0, chf, parallel, use_numba)  # XY
     xcorr[:,:,1,0] = cross_correlate(dt[:], dr, 1, 0, 0, ch0, chf, parallel, use_numba)  # YX

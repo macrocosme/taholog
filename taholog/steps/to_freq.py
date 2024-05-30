@@ -67,7 +67,7 @@ def setup_containers(nspec, nchan, ncorr):
     bpos = np.zeros((2))
     boff = np.zeros((2))
     bref = np.zeros((2))
-    bnam = np.zeros((1)) #np.zeros((nspw))
+    bnam = np.zeros((1)) 
     beam = {'name': bnam, 'reference': bref, 'position': bpos, 'offset': boff}
 
     mjds = np.zeros((1)) # Start time in Major Julian Date 
@@ -109,7 +109,6 @@ def join_pols(filename, ntime, nspw, nfiles):
 
     for i in range(nfiles):
         fnm = fn(i)
-        # logger.info('Reading file: {0}'.format(fnm))
         f = h5py.File(fnm, 'r')
         table = f"SUB_ARRAY_POINTING_{props['SAP']}/BEAM_{props['B']}/STOKES_{i}"
         data[:,:,i] = f[table]
@@ -131,7 +130,6 @@ def parse_head(filename, beam, head):
     head3 = f['/SUB_ARRAY_POINTING_{0}/BEAM_{1}'.format(props['SAP'], props['B'])].attrs
     axis2 = f['/SUB_ARRAY_POINTING_{0}/BEAM_{1}/COORDINATES/COORDINATE_1'.format(props['SAP'], props['B'])].attrs
 
-    # head['frequency_hz'] = axis2['AXIS_VALUES_WORLD'][spw]
     head['AXIS_VALUES_WORLD'] = axis2['AXIS_VALUES_WORLD']
     head['target_source_name'] = head1['TARGETS'][0] # Assumes only one target per file.
     head['mjd_start'] = head1['OBSERVATION_START_MJD']
@@ -214,6 +212,8 @@ def call_fft(ncpus, n_gpu_devices, input_file, output_base, beam, head, beam_dat
 
     # Check if process should be sent to CPU or GPU
     if ncpus > 1 and use_gpu:
+        # This block currently leads to slower performance (GPU and multiprocessing)
+        # TODO: write a cuda kernel that efficiently breaks down the problem onto GPU memory
         p_info = mp.current_process()
         pid = p_info.pid
         use_cupy = pid % ncpus < n_gpu_devices
@@ -285,24 +285,71 @@ def main(input_file, output_base, current_dir, nchan=64, npols=2, nfiles=4, polm
 
     beam_data = join_pols(input_file, ntime, nspw, nfiles)
 
-    # Add integration time to header.
-    #head['integration_time_s'] = nchan*1./smplr
-
     # Select a particular spectral window/subband if specified
     if this_spw == -1:
         do_spws = range(nspw)
     else:
         do_spws = this_spw
 
-    # logger.info('do_spws {0}'.format(this_spw))
-
     parse_head(input_file, beam, head)
 
-    # logger.info('Will process spectral windows: {0} {1}'.format(do_spws, input_file.split('/')[-1]))
+    results = {}
+
     for spw in do_spws:
         call_fft(ncpus, n_gpu_devices, input_file, output_base, beam, head, 
                  beam_data, spw, nchan, nspec, npols, polmap, ntime, smplr, 
                  to_disk, use_pyfftw, use_gpu)
 
+<<<<<<< Updated upstream
     logger.info(f"Processed file {input_file.split('/')[-1]} in {datetime.now() - start_time}")
+=======
+        ctime = datetime.now()
+
+        # Check if process should be sent to CPU or GPU
+        if ncpus > 1:
+            # p_info = mp.current_process()
+            # pid = p_info.pid
+            # use_cupy = pid % ncpus < n_gpu_devices
+            # device = pid % ncpus if use_cupy else None
+            device = None
+            use_cupy = False
+        else:
+            use_cupy = True
+            device = 0
+
+        # logger.info(f'Use cuda: {use_cupy}')
+        # logger.info(f"Will process it on the {'cpu' if not use_cupy else 'gpu'} {device if use_cupy else ''}")
+
+        # Read the header and extract relevant information.
+        parse_head(input_file, beam, head, spw)
+
+        freq, beam_data_nu, beam_flag_nu = to_freq(beam_data[:,spw,:],
+                                                    nchan,
+                                                    nspec,
+                                                    npols,
+                                                    polmap,
+                                                    smplr,
+                                                    head['frequency_hz'],
+                                                    use_cupy, 
+                                                    device)
+
+        data = beam_data_nu
+        flag = beam_flag_nu
+
+        # Last header update before writing.
+        head['time_samples'] = ntime
+        head['integration_time_s'] = nchan*1./smplr
+
+        # Write output.
+        output = output_base + '_spw{0}.h5'.format(spw)
+        # logger.info('Saving file: {0}'.format(output))
+        save_hdf5(output, freq, data, flag, beam, head)
+        # results[spw] = [output, freq, data, flag, beam, head]
+
+        # logger.info(f'Processed spectral window: {spw}')
+        # logger.info(f'Processed one spectral window in: {datetime.now() - ctime} -- {input_file}')
+
+    logger.info('Processed file {0} in {1}'.format(input_file.split('/')[-1], datetime.now() - start_time))
+    # return results
+>>>>>>> Stashed changes
 

@@ -27,8 +27,14 @@ matplotlib.use('Agg')
 import procs
 
 def run_pipeline(params, verbose=False):
-    """
-    Runs the steps required to process holography data (as recorded by COBALT).
+    """Call the steps required to process holography data (as recorded by COBALT)
+
+    Parameters
+    ----------
+    params: dict
+        List of parameters set in main.py
+    verbose: bool
+        Print extra details to stdout
     """
    
     logger = logging.getLogger(__name__)
@@ -59,37 +65,62 @@ def run_pipeline(params, verbose=False):
     os.chdir(trunk_dir)
 
     if 'to_freq' in steps:
+<<<<<<< Updated upstream
         procs._to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, num_pol, polmap, logger, parallel, verbose)
     check_channelized_file_count(logger, output_dir, target_id, reference_ids, params, verbose)
     # Should also add a similar function as for xcorr where in case of missing files, re-run them and continue.
-    # Also, finding the reason of the failed jobs would render that extra step redundant.
-    # So far, to_freq seems to work just fine with (--parallel=True --no-use_numba --no-use_gpu --no-use_pyfftw --to_disk)
+    # Also, finding what causes the failed jobs to start with would render that extra step redundant.
+    # So far, to_freq seems to work just fine with (--parallel=True --no-use_numba --no-use_gpu --use_pyfftw --to_disk)
+=======
+        result_to_freqs = procs._to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, num_pol, polmap, logger, parallel, verbose)
+
+    # From here we will work in the output directory
+    os.chdir(output_dir)
+
+    logger.info('Checking that there are enough output files.')
+    if verbose: 
+        print ('Checking that there are enough output files.')
+    for ref in reference_ids: 
+        for beam in params['ref_beams']:
+            # all_files = glob.glob(f'{output_dir}{ref}/{cs_str}/*spw*.h5')
+            all_files = glob.glob(f'{output_dir}{ref}/{beam}/*spw*.h5')
+            if len(all_files) != params['spws']:
+                logger.error(f'The number of channelized files is different than expected for reference: {ref}, beam: {beam}')
+                logger.error('Will not continue.')
+                logger.error(f"{len(all_files)} != {params['spws']}")
+                sys.exit(1)   
+    # all_files = glob.glob(f'{output_dir}{target_id}/{cs_str}/*spw*.h5')
+    all_files = glob.glob(f'{output_dir}{target_id}/*spw*.h5')
+    if len(all_files) != params['target_beams']*params['spws']:
+        logger.error('The number of channelized files is different than expected for reference: {0}'.format(ref))
+        logger.error('Will not continue.')
+        sys.exit(1)
+ 
+    logger.info('The number of channelized files is as expected. Continuing...')
+
+>>>>>>> Stashed changes
 
     xcorr_dt = params['xcorr_dt']
     logger.info(f'xcorr_dt: {xcorr_dt}')
     if 'xcorr' in steps:
+<<<<<<< Updated upstream
         procs._xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, verbose)
     
     _continue, missing = check_correlated_file_count(logger, output_dir, target_id, reference_ids, xcorr_dt, params, verbose, return_missing=True)
     # TODO: Should consider a way to exit the loop in case infini-loop is in action...
     while not _continue:
         logger.info(f're-running xcorr on {missing}')
-        # if not parallel:
         for m in missing:
             refid, ref_beam, spw, ibm = m
             xcorr_output_dir = f'{output_dir}{target_id}_xcorr'
             procs._redo_missing_xcorr(output_dir, xcorr_output_dir, target_id, params, xcorr_dt, refid, ref_beam, spw, ibm)
-        # TODO: Parallel processing for these missing files would make sense, but doesn't currently work. I have not investigated.
-        # else:
-        #     pool = mp.Pool(processes=params['xcorr_cpus'])
-        #     for m in missing:
-        #         refid, ref_beam, spw, ibm = m
-        #         xcorr_output_dir = f'{output_dir}{target_id}_xcorr'
-        #         pool.apply_async(procs._redo_missing_xcorr, args=(output_dir, xcorr_output_dir, target_id, params, xcorr_dt, refid, ref_beam, spw, ibm))
-        #     pool.close()
-        #     pool.join()
+        # TODO: Parallel processing for these missing files would likely make sense.
 
         _continue, missing = check_correlated_file_count(logger, output_dir, target_id, reference_ids, xcorr_dt, params, verbose, return_missing=True)
+=======
+        # procs._xcorr(output_dir, cs_str, target_id, reference_ids, params, parallel, verbose)
+        procs._xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, parallel, verbose)
+>>>>>>> Stashed changes
 
     if 'plot_beam' in steps:
         procs._plot_beam(output_dir, params, verbose)
