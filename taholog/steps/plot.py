@@ -172,35 +172,22 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
             amp_max = 0
             amp_min = 0
             
-            fig = plt.figure(frameon=False, dpi=150, figsize=(6,6))
-            grid = plt.GridSpec(nx, ny, wspace=0.1, hspace=0.3)
+            fig, _ax = plt.subplots(nx, ny, figsize=(10,10))
             
             fig.suptitle('Amplitude')
-            
-            ax = fig.add_subplot(111)
-            
-            # Turn off axis lines and ticks of the big subplot
-            ax.spines['top'].set_color('none')
-            ax.spines['bottom'].set_color('none')
-            ax.spines['left'].set_color('none')
-            ax.spines['right'].set_color('none')
-            ax.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
-
-            # Set common labels
-            ax.set_xlabel('Frequency (MHz)')
-            ax.set_ylabel('Gain amplitude')
+        
             
             for i,ant in enumerate(ants[ear::ear_step]):
                 
                 y = i//ny
                 x = i%nx
+
+                ax = _ax[y, x]
                 
                 freq = sols[ant]['freq'][:]
                 
                 n_lines = sols[ant]['ph'].shape[0]
                 color_idx = np.linspace(0, 1, n_lines)
-                
-                ax = fig.add_subplot(grid[y,x])
                 
                 ax.set_title(ant)
                 
@@ -220,15 +207,21 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
                 if y < ny - 1:
                     ax.xaxis.set_ticklabels([])
                     
+                # Set common labels
+                ax.set_xlabel('Frequency (MHz)')
+                if x == 0:
+                    ax.set_ylabel('Gain amplitude')
+                    
             for i,ant in enumerate(ants[ear::ear_step]):
             
                 y = i//ny
                 x = i%nx
-                
-                ax = fig.add_subplot(grid[y,x])
+
+                ax = _ax[y, x]
                 
                 ax.set_ylim(amp_min, amp_max)
             
+            plt.tight_layout()
             pdfdoc.savefig(fig)
             plt.close(fig)
         
@@ -404,40 +397,46 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
             tau_max = 0
             tau_min = 0
             
-            fig = plt.figure(frameon=False, dpi=150, figsize=(6,6))
-            grid = plt.GridSpec(nx, ny, wspace=0.1, hspace=0.3)
+            fig, _ax = plt.subplots(nx, ny, figsize=(10,10))
+            # grid = plt.GridSpec(nx, ny, wspace=0.1, hspace=0.3)
             
             fig.suptitle('Delay')
             
-            ax = fig.add_subplot(111)
+            # ax = fig.add_subplot(111)
             
             # Turn off axis lines and ticks of the big subplot
-            ax.spines['top'].set_color('none')
-            ax.spines['bottom'].set_color('none')
-            ax.spines['left'].set_color('none')
-            ax.spines['right'].set_color('none')
-            ax.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
+            # ax.spines['top'].set_color('none')
+            # ax.spines['bottom'].set_color('none')
+            # ax.spines['left'].set_color('none')
+            # ax.spines['right'].set_color('none')
+            # ax.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
 
             # Set common labels
-            ax.set_xlabel('Time slot')
-            ax.set_ylabel('Time delay (ns)')
             
             for i,ant in enumerate(ants[ear::ear_step]):
                 
                 y = i//ny
                 x = i%nx
+
+                ax = _ax[y, x]
                         
                 time = np.arange(sols[ant]['tau'].shape[0])
                 
                 n_lines = sols[ant]['tau'].shape[1]
                 color_idx = np.linspace(0, 1, n_lines)
                 
-                ax = fig.add_subplot(grid[y,x])
+                # ax = fig.add_subplot(grid[y,x])
+                
 
                 ax.set_title(ant)
                 
                 for l in range(n_lines):
-                    ax.errorbar(time, sols[ant]['tau'][:,l]*1e9, yerr=sols[ant]['tau_err'][:,l]*1e9, color=cm(color_idx[l]), ls='', marker='.')
+                    ax.errorbar(time, 
+                                sols[ant]['tau'][:,l]*1e9, 
+                                yerr=sols[ant]['tau_err'][:,l]*1e9, 
+                                color=cm(color_idx[l]), 
+                                ls='', 
+                                marker='.')
                 
                 tau_max = np.max((tau_max, np.max(sols[ant]['tau'][:,l]*1e9)))
                 tau_min = np.min((tau_min, np.min(sols[ant]['tau'][:,l]*1e9)))
@@ -451,16 +450,21 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
                 
                 if y < ny - 1:
                     ax.xaxis.set_ticklabels([])
-                    
+                
+                # if y == ny-1:
+                ax.set_xlabel('Time slot')
+                if x == 0:
+                    ax.set_ylabel('Time delay (ns)')
+
             for i,ant in enumerate(ants[ear::ear_step]):
                 
                 y = i//ny
                 x = i%nx
                 
-                ax = fig.add_subplot(grid[y,x])
-                
+                ax = _ax[y, x]
                 ax.set_ylim(tau_min, tau_max)
-                            
+            
+            plt.tight_layout()
             pdfdoc.savefig(fig)
             plt.close(fig)
             
@@ -471,34 +475,37 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
             tau0_max = 0
             tau0_min = 0
             
-            fig = plt.figure(frameon=False, dpi=150, figsize=(6,6))
-            grid = plt.GridSpec(nx, ny, wspace=0.1, hspace=0.3)
+            # fig = plt.figure(frameon=False, dpi=150, figsize=(9,9))
+            # grid = plt.GridSpec(nx, ny, wspace=0.1, hspace=0.3)
+            fig, _ax = plt.subplots(nx, ny, figsize=(9,9), sharey=True)
             
             fig.suptitle('0 Hz phase offset')
             
-            ax = fig.add_subplot(111)
+            # ax = fig.add_subplot(111)
             
-            # Turn off axis lines and ticks of the big subplot
-            ax.spines['top'].set_color('none')
-            ax.spines['bottom'].set_color('none')
-            ax.spines['left'].set_color('none')
-            ax.spines['right'].set_color('none')
-            ax.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
+            # # Turn off axis lines and ticks of the big subplot
+            # ax.spines['top'].set_color('none')
+            # ax.spines['bottom'].set_color('none')
+            # ax.spines['left'].set_color('none')
+            # ax.spines['right'].set_color('none')
+            # ax.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
 
-            # Set common labels
-            ax.set_xlabel('Time slot')
-            ax.set_ylabel('0 Hz phase offset (rad)')
+            # # Set common labels
+            # ax.set_xlabel('Time slot')
+            # ax.set_ylabel('0 Hz phase offset (rad)')
             for i,ant in enumerate(ants[ear::ear_step]):
                 
                 y = i//ny
                 x = i%nx
-                        
+                
+                ax = _ax[y, x]
+
                 time = np.arange(sols[ant]['tau0'].shape[0])
                 
                 n_lines = sols[ant]['tau0'].shape[1]
                 color_idx = np.linspace(0, 1, n_lines)
                 
-                ax = fig.add_subplot(grid[y,x])
+                # ax = fig.add_subplot(grid[y,x])
 
                 ax.set_title(ant)
                 
@@ -517,15 +524,12 @@ def plot_report(output, solutions_file, uvhol_files_func, phase_ref_station='',
                 
                 if y < ny - 1:
                     ax.xaxis.set_ticklabels([])
-                    
-            for i,ant in enumerate(ants[ear::ear_step]):
-                
-                y = i//ny
-                x = i%nx
-                
-                ax = fig.add_subplot(grid[y,x])
-                
-                ax.set_ylim(tau0_min, tau0_max)
+
+                ax.set_xlabel('Time slot')
+                if x == 0:
+                    ax.set_ylabel('0 Hz phase offset (rad)')
+
+            plt.tight_layout()
                             
             pdfdoc.savefig(fig)
             plt.close(fig)
