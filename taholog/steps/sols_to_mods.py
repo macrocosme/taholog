@@ -6,7 +6,7 @@ import scipy.constants as const
 from scipy.interpolate import griddata
 
 import holog
-from taholog import beam, stations
+from . import beam, stations
 
 def make_grid(xaxis, yaxis, symmetric=True):
     """
@@ -81,6 +81,7 @@ def make_model(spws, sols, uvhol_files_func, phase_ref_station=''):
     mod_beam_fit = np.empty((len(spws),)+lm_grid[0].shape, dtype=np.complex64)
 
     for i,spw in enumerate(spws):
+        logger.info(f"Working on spw {i}: {spw}")
         
         mod_beam_vis[i] = beam.simple_beam_model(np.array([hd[i].l_rad, hd[i].m_rad]).T, 
                                                 station_pqr[:,:-1]*sols[stats[0]]['freq'][spw]/const.c, 

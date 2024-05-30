@@ -9,7 +9,7 @@ import scipy.constants as const
 from numpy.lib.scimath import sqrt as csqrt
 
 import holog
-from taholog import stations, beam
+from . import stations, beam
 
 def fit_lstsq_complex(hd, xs, ys, weighted=True):
     """

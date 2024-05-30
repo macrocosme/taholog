@@ -31,35 +31,44 @@ def set_nspec(filename, nchan=256):
     """
 
     props = get_props_from_filename(filename)
-    table = 'SUB_ARRAY_POINTING_{0}/BEAM_{1}'.format(props['SAP'], props['B'])
+    table = f"SUB_ARRAY_POINTING_{props['SAP']}/BEAM_{props['B']}"
 
     f = h5py.File(filename, 'r')
-    datah5 = f[table+'/STOKES_{0}'.format(props['S'])]
+    datah5 = f[table+f"/STOKES_{props['S']}"]
     head3 = f[table].attrs
-    nspw = datah5.shape[1]
+    nspw = datah5.shape[1]  # n spectral window(s), a.k.a. number of subbands
     nspec = datah5.shape[0]//nchan
     ntime = datah5.shape[0]
     sampl = head3['SAMPLING_RATE']
 
     return nspw, nspec, ntime, sampl
 
-def to_freq(data, nchan, nspec, npol, polmap, sample_rate, center_freq):
+def to_freq(data, nchan, nspec, npol, polmap, sample_rate, center_freq, threads=1):
     """
     Computes the FFT of a time series to obtain a spectrum.
     """
+    if has_cuda:
+        import pycuda.autoinit
+        import pycuda.gpuarray as gpuarray
+        import skcuda.fft as cu_fft
+        x_gpu = gpuarray.to_gpu(x) 
+        xf_gpu = gpuarray.empty(N//2+1, np.complex64) # infft
 
-    if has_pyfftw:
+
+    elif has_pyfftw:
         # pyFFTW aligned arrays to store input and output of DFT.
         infft = pyfftw.empty_aligned(nchan, dtype=np.complex64)
         outfft = pyfftw.empty_aligned(nchan, dtype=np.complex64)
         # pyFFTW FFTW object to perform the actual DFT.
-        fft_object = pyfftw.FFTW(infft, outfft)
+        fft_object = pyfftw.FFTW(infft, outfft, threads=threads)
         # Data.
         fftdata = pyfftw.zeros_aligned((nspec,npol,nchan), dtype=np.complex64)
     else:
         fftdata = np.zeros((nspec,npol,nchan), dtype=np.complex64)
+
     # Frequency.
     fftfreq = np.zeros((nchan), dtype=np.float32)
+
     # Flags.
     flags = np.zeros((nspec,npol,nchan), dtype=np.bool)
 
@@ -73,16 +82,20 @@ def to_freq(data, nchan, nspec, npol, polmap, sample_rate, center_freq):
 
             if len(polmap[p]) == 2:
                 i0,i1 = polmap[p]
-                if has_pyfftw:
-                    infft[:] = data[t*nchan:(t+1)*nchan,i0] + 1j*data[t*nchan:(t+1)*nchan,i1]
+                if has_cuda:
+                    pass
+                elif has_pyfftw:
+                    infft[:] = data[t*nchan:(t+1)*nchan, i0] + 1j*data[t*nchan:(t+1)*nchan, i1]
                     fft_object()
-                    fftdata[t:t+1,p,:] = np.fft.fftshift(outfft)
+                    fftdata[t:t+1, p, :] = np.fft.fftshift(outfft)
                 else:
-                    fftdata[t:t+1,p,:] = np.fft.fftshift(np.fft.fft(data[t*nchan:(t+1)*nchan, i0] + 1j*data[t*nchan:(t+1)*nchan, i1]))
+                    fftdata[t:t+1, p, :] = np.fft.fftshift(np.fft.fft(data[t*nchan:(t+1)*nchan, i0] + 1j*data[t*nchan:(t+1)*nchan, i1]))
 
             elif len(polmap[p]) == 1:
                 i0 = polmap[p]
-                if has_pyfftw:
+                if has_cuda:
+                    pass
+                elif has_pyfftw:
                     infft = data[t*nchan:(t+1)*nchan, i0]
                     fft_object()
                     fftdata[t:t+1,p,:] = np.fft.fftshift(outfft)
@@ -137,7 +150,6 @@ def join_pols(filename, ntime, nspw, nfiles):
     data[:,:,3] the imaginary part of Y
     """
     data = np.zeros((ntime, nspw, nfiles), dtype=np.float64)
-
     indx = filename.find('S0')
     fn = lambda s: '{0}S{1}{2}'.format(filename[:indx], s, filename[indx+2:])
 
@@ -146,9 +158,8 @@ def join_pols(filename, ntime, nspw, nfiles):
     for i in range(nfiles):
         fnm = fn(i)
         logger.info('Reading file: {0}'.format(fnm))
-        #logger.info(fnm)
         f = h5py.File(fnm, 'r')
-        table = 'SUB_ARRAY_POINTING_{0}/BEAM_{1}/STOKES_{2}'.format(props['SAP'], props['B'], i)
+        table = f"SUB_ARRAY_POINTING_{props['SAP']}/BEAM_{props['B']}/STOKES_{i}"
         data[:,:,i] = f[table]
 
     return data
@@ -232,7 +243,7 @@ def main(input_file, output_base, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,
 
     logger = logging.getLogger(__name__)
 
-    logger.info('Working on file: {0}'.format(input_file))
+    # logger.info('Working on file: {0}'.format(input_file))
 
     nspw, nspec, ntime, smplr = set_nspec(input_file, nchan=nchan)
 
@@ -249,7 +260,9 @@ def main(input_file, output_base, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,
     else:
         do_spws = this_spw
 
-    logger.info('Will process spectral windows: {0}'.format(do_spws))
+    # logger.info('do_spws {0}'.format(this_spw))
+
+    logger.info('Will process spectral windows: {0} {1}'.format(do_spws, input_file.split('/')[-1]))
 
     for spw in do_spws:
 
@@ -258,7 +271,13 @@ def main(input_file, output_base, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,
         # Read the header and extract relevant information.
         parse_head(input_file, beam, head, spw)
 
-        freq, beam_data_nu, beam_flag_nu = to_freq(beam_data[:,spw,:], nchan, nspec, npols, polmap, smplr, head['frequency_hz'])
+        freq, beam_data_nu, beam_flag_nu = to_freq(beam_data[:,spw,:], 
+                                                   nchan, 
+                                                   nspec, 
+                                                   npols, 
+                                                   polmap, 
+                                                   smplr, 
+                                                   head['frequency_hz'])
         data = beam_data_nu
         flag = beam_flag_nu
 
@@ -271,6 +290,7 @@ def main(input_file, output_base, nchan=64, npols=2, nfiles=4, polmap=[[0,1],[2,
         logger.info('Saving file: {0}'.format(output))
         save_hdf5(output, freq, data, flag, beam, head)
 
+        logger.info(f'Processed spectral window: {spw}')
         logger.info('Processed one spectral window in: {0}'.format(datetime.now() - ctime))
 
     logger.info('Processed file {0} in {1}'.format(input_file, datetime.now() - start_time))

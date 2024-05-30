@@ -53,6 +53,8 @@ def main(files, out, phase_ref_station, degree):
     times = np.empty(len(files), dtype=object)
 
     # Load the solutions.
+    print ()
+    print (f"solution files: {files}")
     for i,f in enumerate(files):
         data[i] = pickle.load(open(f, "rb")) # One time, one frequency, one correlation, all stations
         stations[i] = list(data[i].keys())
@@ -77,6 +79,8 @@ def main(files, out, phase_ref_station, degree):
             'ph_ref_station']
 
     for i,k in enumerate(sols.keys()):
+        print (f"{k}, {np.zeros((taxis, len(urefss)), dtype=np.float64).shape}")
+
         sols[k] = dict.fromkeys(skey)
         sols[k]['amp'] = np.zeros((taxis, len(urefss), len(ufreqs)), dtype=np.float64)
         sols[k]['ph'] = np.zeros((taxis, len(urefss), len(ufreqs)), dtype=np.float64)

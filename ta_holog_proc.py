@@ -4,6 +4,8 @@
 This script runs all the steps required to process raw voltage data into complex valued beam maps.
 It assumes that the data will be located in trunk_dir, and each observation (target and reference)
 will be in a separate directory named as their sasid.
+
+Edit (May 2024): reference stations observations can now also be included as individual beams under one sasid. 
 """
 
 import re
@@ -17,15 +19,12 @@ import multiprocessing as mp
 from cProfile import Profile
 from pstats import SortKey, Stats
 
+from taholog.testing.checks import check_channelized_file_count, check_correlated_file_count
+
 import matplotlib
 matplotlib.use('Agg')
 
-from taholog import procs
-
-from taholog import misc, to_freq, xcorr, gencal, applycal, \
-                    clip, average, to_uvhol, solve, order, plot
-
-
+import procs
 
 def run_pipeline(params, verbose=False):
     """
@@ -44,8 +43,9 @@ def run_pipeline(params, verbose=False):
     target_id = params['target_id']
     reference_ids = params['reference_ids']
     trunk_dir = params['trunk_dir']
+    output_dir = params['output_dir']
     cs_str = params['cs_str']
-    debug = params['debug']
+    parallel = params['parallel']
 
     # Setup polarization mapping
     num_pol = params['to_freq_num_pol']
@@ -59,140 +59,68 @@ def run_pipeline(params, verbose=False):
     os.chdir(trunk_dir)
 
     if 'to_freq' in steps:
-        procs._to_freq(trunk_dir, cs_str, target_id, reference_ids, params, num_pol, polmap, logger, debug, verbose)
-
-
-    os.chdir(trunk_dir)
-
-    logger.info('Checking that there are enough output files.')
-    if verbose: 
-        print ('Checking that there are enough output files.')
-    for ref in reference_ids: 
-        all_files = glob.glob(f'{trunk_dir}{ref}/{cs_str}/*spw*.h5')
-        if len(all_files) != params['spws']:
-            logger.error('The number of channelized files is different than expected for reference: {0}'.format(ref))
-            logger.error('Will not continue.')
-            sys.exit(1)   
-    all_files = glob.glob(f'{trunk_dir}{target_id}/{cs_str}/*spw*.h5')
-    if len(all_files) != params['target_beams']*params['spws']:
-        logger.error('The number of channelized files is different than expected for reference: {0}'.format(ref))
-        logger.error('Will not continue.')
-        sys.exit(1)
- 
-    logger.info('The number of channelized files is as expected. Continuing...')
-
+        procs._to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, num_pol, polmap, logger, parallel, verbose)
+    check_channelized_file_count(logger, output_dir, target_id, reference_ids, params, verbose)
+    # Should also add a similar function as for xcorr where in case of missing files, re-run them and continue.
+    # Also, finding the reason of the failed jobs would render that extra step redundant.
+    # So far, to_freq seems to work just fine with (--parallel=True --no-use_numba --no-use_gpu --no-use_pyfftw --to_disk)
 
     xcorr_dt = params['xcorr_dt']
+    logger.info(f'xcorr_dt: {xcorr_dt}')
     if 'xcorr' in steps:
-        with Profile() as profile:
-            print(f"{procs._xcorr(trunk_dir, cs_str, target_id, reference_ids, params, debug, verbose) = }")
-            (
-                Stats(profile)
-                .strip_dirs()
-                .sort_stats(SortKey.CALLS)
-                .print_stats()
-            )
+        procs._xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, verbose)
+    
+    _continue, missing = check_correlated_file_count(logger, output_dir, target_id, reference_ids, xcorr_dt, params, verbose, return_missing=True)
+    # TODO: Should consider a way to exit the loop in case infini-loop is in action...
+    while not _continue:
+        logger.info(f're-running xcorr on {missing}')
+        # if not parallel:
+        for m in missing:
+            refid, ref_beam, spw, ibm = m
+            xcorr_output_dir = f'{output_dir}{target_id}_xcorr'
+            procs._redo_missing_xcorr(output_dir, xcorr_output_dir, target_id, params, xcorr_dt, refid, ref_beam, spw, ibm)
+        # TODO: Parallel processing for these missing files would make sense, but doesn't currently work. I have not investigated.
+        # else:
+        #     pool = mp.Pool(processes=params['xcorr_cpus'])
+        #     for m in missing:
+        #         refid, ref_beam, spw, ibm = m
+        #         xcorr_output_dir = f'{output_dir}{target_id}_xcorr'
+        #         pool.apply_async(procs._redo_missing_xcorr, args=(output_dir, xcorr_output_dir, target_id, params, xcorr_dt, refid, ref_beam, spw, ibm))
+        #     pool.close()
+        #     pool.join()
+
+        _continue, missing = check_correlated_file_count(logger, output_dir, target_id, reference_ids, xcorr_dt, params, verbose, return_missing=True)
 
     if 'plot_beam' in steps:
-        with Profile() as profile:
-            print(f"{procs._plot_beam(params, debug, verbose) = }")
-            (
-                Stats(profile)
-                .strip_dirs()
-                .sort_stats(SortKey.CALLS)
-                .print_stats()
-            )
+        procs._plot_beam(output_dir, params, verbose)
 
     if 'gencal' in steps:
-        with Profile() as profile:
-            print(f"{procs._gencal(trunk_dir, target_id, xcorr_dt, reference_ids, params, debug, verbose) = }")
-            (
-                Stats(profile)
-                .strip_dirs()
-                .sort_stats(SortKey.CALLS)
-                .print_stats()
-            )
+        procs._gencal(output_dir, target_id, xcorr_dt, reference_ids, params, parallel, verbose)
 
     if 'applycal' in steps:
-        with Profile() as profile:
-            print(f"{procs._applycal(trunk_dir, target_id, xcorr_dt, params, reference_ids, debug, verbose) = }")
-            (
-                Stats(profile)
-                .strip_dirs()
-                .sort_stats(SortKey.CALLS)
-                .print_stats()
-            )
+        procs._applycal(output_dir, target_id, xcorr_dt, params, reference_ids, parallel, verbose)
 
     if 'clip' in steps:
-        with Profile() as profile:
-            print(f"{procs._clip(trunk_dir, target_id, reference_ids, xcorr_dt, params, debug) = }")
-            (
-                Stats(profile)
-                .strip_dirs()
-                .sort_stats(SortKey.CALLS)
-                .print_stats()
-            )
+        procs._clip(output_dir, target_id, reference_ids, xcorr_dt, params, parallel)
 
     average_t_dt = params['average_t_dt']
 
     if 'average_t' in steps:
-        with Profile() as profile:
-            print(f"{procs._average_t(trunk_dir, target_id, average_t_dt, reference_ids, xcorr_dt, params, debug) = }")
-            (
-                Stats(profile)
-                .strip_dirs()
-                .sort_stats(SortKey.CALLS)
-                .print_stats()
-            )
+        procs._average_t(output_dir, target_id, average_t_dt, reference_ids, xcorr_dt, params, parallel)
 
     if 'to_uvhol' in steps:
-        with Profile() as profile:
-            print(f"{procs._to_uvhol(trunk_dir, target_id, xcorr_dt, average_t_dt, reference_ids, params, debug) = }")
-            (
-                Stats(profile)
-                .strip_dirs()
-                .sort_stats(SortKey.CALLS)
-                .print_stats()
-            )
+        procs._to_uvhol(output_dir, target_id, xcorr_dt, average_t_dt, reference_ids, params, parallel)
 
     if 'average_uvhol' in steps:
-        with Profile() as profile:
-            print(f"{procs._average_uvhol(trunk_dir, target_id, xcorr_dt, average_t_dt, params, reference_ids) = }")
-            (
-                Stats(profile)
-                .strip_dirs()
-                .sort_stats(SortKey.CALLS)
-                .print_stats()
-            )
+        procs._average_uvhol(output_dir, target_id, xcorr_dt, average_t_dt, params, reference_ids)
         
     if 'solve_uvhol' in steps:
-        with Profile() as profile:
-            print(f"{procs._solve_uvhol(trunk_dir, target_id, xcorr_dt, average_t_dt, params, logger) = }")
-            (
-                Stats(profile)
-                .strip_dirs()
-                .sort_stats(SortKey.CALLS)
-                .print_stats()
-            )
+        procs._solve_uvhol(output_dir, target_id, xcorr_dt, average_t_dt, params, logger)
         
     if 'order_sols' in steps:
-        with Profile() as profile:
-            print(f"{procs._order_sols(trunk_dir, target_id, xcorr_dt, average_t_dt, params) = }")
-            (
-                Stats(profile)
-                .strip_dirs()
-                .sort_stats(SortKey.CALLS)
-                .print_stats()
-            )
+        procs._order_sols(output_dir, target_id, xcorr_dt, average_t_dt, params)
         
     if 'plot_report' in steps:
-        with Profile() as profile:
-            print(f"{procs._plot_report(trunk_dir, target_id, xcorr_dt, average_t_dt, pol, params) = }")
-            (
-                Stats(profile)
-                .strip_dirs()
-                .sort_stats(SortKey.CALLS)
-                .print_stats()
-            )
+        procs._plot_report(output_dir, target_id, xcorr_dt, average_t_dt, params)
 
     logger.info('Done with steps: {0}'.format(steps))

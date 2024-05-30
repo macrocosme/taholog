@@ -13,10 +13,10 @@ try:
 except ModuleNotFoundError:
     pass
 
-from taholog import misc
-from taholog import to_uvhol
+from . import misc
+from . import to_uvhol
 
-def average_uvhol(input_files, reference_ids, output, pol):
+def average_uvhol(input_files, reference_ids, params, output, pol):
     r'''
     Performas an inverse variance weighted average of the beam maps 
     produced using different reference stations.
@@ -24,23 +24,33 @@ def average_uvhol(input_files, reference_ids, output, pol):
 
     logger = logging.getLogger(__name__)
 
-    refs = dict.fromkeys(reference_ids)
+    refs = {f"{r}/{b}/":[] for b in params['ref_beams'] for r in reference_ids}
 
-    for key in refs.keys():
-        refs[key] = []
+    logger.info(f"Init refs: {refs}")
 
+    # for key in refs.keys():
+    #     for beam in params['ref_beams']:
+    #         k = f"{ref}/{beam}/"
+    #         refs[k] = []
+
+    logger.info('Checking keys in filenames')
     for input_file in input_files:
         for ref in refs.keys():
             if ref in input_file:
                 refs[ref].append(input_file)
 
-    numtimes = len(refs[reference_ids[0]])
+    # numtimes = len(refs[reference_ids[0]])
+    logger.info(f"Post init refs: {refs}")
+
+    numtimes = len(refs[list(refs.keys())[0]])
     logger.info('Number of time slots opened: {0}'.format(numtimes))
 
-    numbeams = np.zeros((len(reference_ids),numtimes), dtype=np.int)
-    ref_ants = np.empty(len(reference_ids), dtype='S32')
+    # numbeams = np.zeros((len(reference_ids),numtimes), dtype=np.int)
+    numbeams = np.zeros((len(refs.keys()),numtimes), dtype=np.int)
+    # ref_ants = np.empty(len(reference_ids), dtype='S32')
+    ref_ants = np.empty(len(refs.keys()), dtype='S32')
 
-    for i,ref in enumerate(reference_ids):
+    for i,ref in enumerate(refs.keys()):
         for t in range(numtimes):
             logger.info('Loading {0}'.format(refs[ref][t]))
             hd_ = uvhol.read_uvhol_file(refs[ref][t])[0]
@@ -48,15 +58,15 @@ def average_uvhol(input_files, reference_ids, output, pol):
             ref_ants[i] = hd_.ref_ants[0]
 
     template_idx = np.unravel_index(numbeams.argmax(), numbeams.shape)[0]
-    template_ref = reference_ids[template_idx]
+    # template_ref = reference_ids[template_idx]
+    template_ref = list(refs.keys())[template_idx]
 
     logger.info('Maximum number of beams in all uvhol files: {0}'.format(int(numbeams.max())))
 
-    template = -1*np.ma.ones((numtimes, len(reference_ids), int(numbeams.max()), 6))
+    template = -1*np.ma.ones((numtimes, len(refs.keys()), int(numbeams.max()), 6))
     weights = np.ones((numtimes, int(numbeams.max())))
 
     for t in range(numtimes):
-
         logger.info(refs[template_ref][t])
 
         hd_ = uvhol.read_uvhol_file(refs[template_ref][t])[0]
@@ -83,7 +93,7 @@ def average_uvhol(input_files, reference_ids, output, pol):
             template[t,template_idx,:,2:] = np.nan
             weights[t,len_hd:] -= 1
 
-        for i,ref in enumerate(reference_ids):
+        for i,ref in enumerate(refs.keys()):
             logger.info('Working on: {0}'.format(ref))
             if ref != template_ref:
 
@@ -127,7 +137,7 @@ def average_uvhol(input_files, reference_ids, output, pol):
                                             hd_.antenna.split(','),
                                             pol, hd_.freq_hz*1e-9,
                                             0, 0, 0, 3)
-        footer = to_uvhol.make_uvhol_footer(len(reference_ids)*64)
+        footer = to_uvhol.make_uvhol_footer(len(refs.keys())*64)
 
         logger.info('Saving file: {0}'.format(output(t)))
         np.savetxt(output(t), np.c_[template[t,template_idx,:,0],

@@ -8,7 +8,7 @@ import numpy as np
 from datetime import datetime
 
 from astropy import time
-from taholog import coordinates
+from . import coordinates
 
 def make_uvhol_header(ref_antennas, tgt_antennas, stokes, frequency_hz, if_num, t_start, t_end, numpoints):
     """
@@ -22,8 +22,6 @@ def make_uvhol_header(ref_antennas, tgt_antennas, stokes, frequency_hz, if_num, 
     except AttributeError:
         pass
 
-    print ('ref_antennas', ref_antennas)
-    print ('tgt_antennas', tgt_antennas)
     head = "#! RefAnt = {0} Antenna = {1} Stokes = {2} Freq = {3}\n"\
                        "#! MINsamp = 3 Npoint = 5\n"\
                        "#! IFnumber = {4} Channel = 1\n"\
@@ -55,7 +53,7 @@ def main(file_list, output_base, correlations='XX,XY,YX,YY'):
 
     corr = np.array(correlations.split(',')).reshape(2,2)
 
-    logger.info('Will process the files: {0}'.format(file_list))
+    # logger.info('Will process the files: {0}'.format(file_list))
 
     fth5 = h5py.File(file_list[0], 'r')
     ht = fth5.attrs
@@ -111,9 +109,8 @@ def main(file_list, output_base, correlations='XX,XY,YX,YY'):
     for t in range(xcorr.shape[1]):
         for i,_c in enumerate(corr):
             for j,c in enumerate(_c):
-
+                
                 output = '{0}_{1}_t{2}.uvhol'.format(output_base, c, t)
-
                 header = make_uvhol_header(ht['reference_antennas'],
                                            ht['target_antennas'],
                                            c, ht['frequency_hz']*1e-9,
