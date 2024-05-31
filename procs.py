@@ -1,6 +1,8 @@
 import multiprocessing as mp
 from dask.distributed import Client, progress
 import dask
+from dask.distributed import Client, progress
+import dask
 import os
 import glob
 import re
@@ -52,11 +54,17 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
 
     if parallel:
         logger.info(f"Multiprocessing: {params['to_freq_cpus']} processes.")    
+
+    if parallel:
+        logger.info(f"Multiprocessing: {params['to_freq_cpus']} processes.")    
         for ref in reference_ids:
             current_dir = f"{trunk_dir}{ref}/{cs_str}/"
             _outdir = check_folder_exists_or_create(f"{output_dir}{ref}", return_folder=True)
             os.chdir(current_dir)
             
+            # pool = mp.Pool(processes=params['to_freq_cpus'])
+            client = Client(threads_per_worker=4, n_workers=params['to_freq_cpus'])
+            lazy_results = []
             # pool = mp.Pool(processes=params['to_freq_cpus'])
             client = Client(threads_per_worker=4, n_workers=params['to_freq_cpus'])
             lazy_results = []
@@ -67,6 +75,26 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
 
                 logger.info(f'output_base: {output_base}')
 
+                # pool.apply_async(to_freq.main,
+                #                     args=(input_file, 
+                #                           output_base, 
+                #                           params['to_freq_num_chan'], 
+                #                           num_pol, 
+                #                           params['to_freq_num_files'],
+                #                           polmap, 
+                #                           params['to_freq_cpus'],
+                #                           # Should add n_gpu_devices here too
+                #                           ))
+            # pool.close()
+            # pool.join()
+                lazy_results.append(dask.delayed(to_freq.main)(input_file, 
+                                                               output_base, 
+                                                               params['to_freq_num_chan'], 
+                                                               num_pol, 
+                                                               params['to_freq_num_files'],
+                                                               polmap, 
+                                                               params['to_freq_cpus']))
+            dask.compute(*lazy_results)
                 # pool.apply_async(to_freq.main,
                 #                     args=(input_file, 
                 #                           output_base, 
@@ -114,6 +142,10 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
         # pool = mp.Pool(processes=params['to_freq_cpus'])
         client = Client(threads_per_worker=4, n_workers=params['to_freq_cpus'])
         lazy_results = []
+    if parallel: 
+        # pool = mp.Pool(processes=params['to_freq_cpus'])
+        client = Client(threads_per_worker=4, n_workers=params['to_freq_cpus'])
+        lazy_results = []
         
         for beam in params['to_freq_beams']:
 >>>>>>> Stashed changes
@@ -152,6 +184,9 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
                                                            polmap,
                                                            params['to_freq_cpus']))
 
+        # pool.close()
+        # pool.join()
+        dask.compute(*lazy_results)
         # pool.close()
         # pool.join()
         dask.compute(*lazy_results)

@@ -345,6 +345,7 @@ def main(input_file, output_base, current_dir, nchan=64, npols=2, nfiles=4, polm
         # logger.info('Saving file: {0}'.format(output))
         save_hdf5(output, freq, data, flag, beam, head)
         # results[spw] = [output, freq, data, flag, beam, head]
+        # results[spw] = [output, freq, data, flag, beam, head]
 
         # logger.info(f'Processed spectral window: {spw}')
         # logger.info(f'Processed one spectral window in: {datetime.now() - ctime} -- {input_file}')

@@ -52,6 +52,7 @@ def run_pipeline(params, verbose=False):
     output_dir = params['output_dir']
     cs_str = params['cs_str']
     parallel = params['parallel']
+    parallel = params['parallel']
 
     # Setup polarization mapping
     num_pol = params['to_freq_num_pol']
@@ -127,19 +128,24 @@ def run_pipeline(params, verbose=False):
 
     if 'gencal' in steps:
         procs._gencal(output_dir, target_id, xcorr_dt, reference_ids, params, parallel, verbose)
+        procs._gencal(output_dir, target_id, xcorr_dt, reference_ids, params, parallel, verbose)
 
     if 'applycal' in steps:
         procs._applycal(output_dir, target_id, xcorr_dt, params, reference_ids, parallel, verbose)
+        procs._applycal(output_dir, target_id, xcorr_dt, params, reference_ids, parallel, verbose)
 
     if 'clip' in steps:
+        procs._clip(output_dir, target_id, reference_ids, xcorr_dt, params, parallel)
         procs._clip(output_dir, target_id, reference_ids, xcorr_dt, params, parallel)
 
     average_t_dt = params['average_t_dt']
 
     if 'average_t' in steps:
         procs._average_t(output_dir, target_id, average_t_dt, reference_ids, xcorr_dt, params, parallel)
+        procs._average_t(output_dir, target_id, average_t_dt, reference_ids, xcorr_dt, params, parallel)
 
     if 'to_uvhol' in steps:
+        procs._to_uvhol(output_dir, target_id, xcorr_dt, average_t_dt, reference_ids, params, parallel)
         procs._to_uvhol(output_dir, target_id, xcorr_dt, average_t_dt, reference_ids, params, parallel)
 
     if 'average_uvhol' in steps:
