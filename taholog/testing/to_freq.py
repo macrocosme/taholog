@@ -85,9 +85,13 @@ from ..steps.to_freq import (
     join_pols, 
     parse_head,
     to_freq,
-    fft_cupy, fft_numpy, fft_numpy_original, fft_pyfftw, fft_pyfftw_original,
     call_fft
 )
+
+from ..steps.fft.fft import (
+    fft_cupy, fft_numpy, fft_numpy_original, fft_pyfftw, fft_pyfftw_original,
+)
+
 
 nspw, nspec, ntime, smplr = set_nspec(input_file, nchan=nchan)
 data, flag, beam, head = setup_containers(nspec, nchan, npols)
@@ -109,10 +113,10 @@ n_gpu_devices = 2
 # Time atomic FFT methods
 def time_fft_methods():
     timing = {
-        # 'pyfftw_original': [], 
-        # 'pyfftw': [], 
-        # 'numpy_original': [], 
-        # 'numpy': [], 
+        'pyfftw_original': [], 
+        'pyfftw': [], 
+        'numpy_original': [], 
+        'numpy': [], 
         'cupy': [],
     }
     

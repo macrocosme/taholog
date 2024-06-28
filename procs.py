@@ -13,7 +13,6 @@ from utils import check_folder_exists_or_create
 from taholog.steps import to_freq, xcorr, plot, gencal, applycal, clip, average, to_uvhol, misc, solve, order
 
 def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, num_pol, polmap, logger, parallel, verbose=False):
-<<<<<<< Updated upstream
     """ Convert stations' spectral windows (subbands) to frequency regime.
 
     For each reference and target stations, convert time series at each subband into spectra.
@@ -47,114 +46,11 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
     # Reference stations.
     if verbose: 
         print ('to_freq.main for each reference station')
-=======
-    # Start with the reference stations.
-    if verbose: 
-        print ('to_freq.main for each reference station')
-
-    if parallel:
-        logger.info(f"Multiprocessing: {params['to_freq_cpus']} processes.")    
-
-    if parallel:
-        logger.info(f"Multiprocessing: {params['to_freq_cpus']} processes.")    
-        for ref in reference_ids:
-            current_dir = f"{trunk_dir}{ref}/{cs_str}/"
-            _outdir = check_folder_exists_or_create(f"{output_dir}{ref}", return_folder=True)
-            os.chdir(current_dir)
-            
-            # pool = mp.Pool(processes=params['to_freq_cpus'])
-            client = Client(threads_per_worker=4, n_workers=params['to_freq_cpus'])
-            lazy_results = []
-            # pool = mp.Pool(processes=params['to_freq_cpus'])
-            client = Client(threads_per_worker=4, n_workers=params['to_freq_cpus'])
-            lazy_results = []
-            for beam in params['ref_beams']:
-                input_file = f'{current_dir}{ref}_SAP000_B{beam:03d}_S0_P000_bf.h5'
-                outdir = check_folder_exists_or_create(f"{_outdir}{beam}", return_folder=True)
-                output_base = f'{outdir}{ref}_SAP000_B{0:03d}_P000_bf'
-
-                logger.info(f'output_base: {output_base}')
-
-                # pool.apply_async(to_freq.main,
-                #                     args=(input_file, 
-                #                           output_base, 
-                #                           params['to_freq_num_chan'], 
-                #                           num_pol, 
-                #                           params['to_freq_num_files'],
-                #                           polmap, 
-                #                           params['to_freq_cpus'],
-                #                           # Should add n_gpu_devices here too
-                #                           ))
-            # pool.close()
-            # pool.join()
-                lazy_results.append(dask.delayed(to_freq.main)(input_file, 
-                                                               output_base, 
-                                                               params['to_freq_num_chan'], 
-                                                               num_pol, 
-                                                               params['to_freq_num_files'],
-                                                               polmap, 
-                                                               params['to_freq_cpus']))
-            dask.compute(*lazy_results)
-                # pool.apply_async(to_freq.main,
-                #                     args=(input_file, 
-                #                           output_base, 
-                #                           params['to_freq_num_chan'], 
-                #                           num_pol, 
-                #                           params['to_freq_num_files'],
-                #                           polmap, 
-                #                           params['to_freq_cpus'],
-                #                           # Should add n_gpu_devices here too
-                #                           ))
-            # pool.close()
-            # pool.join()
-                lazy_results.append(dask.delayed(to_freq.main)(input_file, 
-                                                               output_base, 
-                                                               params['to_freq_num_chan'], 
-                                                               num_pol, 
-                                                               params['to_freq_num_files'],
-                                                               polmap, 
-                                                               params['to_freq_cpus']))
-            dask.compute(*lazy_results)
-    else:    
-        for ref in reference_ids:
-            current_dir = f"{trunk_dir}{ref}/{cs_str}/"
-            _outdir = check_folder_exists_or_create(f"{output_dir}{ref}", return_folder=True)
-            os.chdir(current_dir)
-
-            for beam in params['ref_beams']:
-                input_file = f'{current_dir}{ref}_SAP000_B{beam:03d}_S0_P000_bf.h5'
-                outdir = check_folder_exists_or_create(f"{_outdir}{beam}", return_folder=True)
-                output_base = f'{outdir}{ref}_SAP000_B{0:03d}_P000_bf'
-                
-                to_freq.main(input_file, 
-                             output_base, 
-                             params['to_freq_num_chan'], 
-                             num_pol, 
-                             params['to_freq_num_files'], 
-                             polmap)
-
-    # Now the target stations.
-    current_dir = f"{trunk_dir}{target_id}/{cs_str}/"
-    os.chdir(current_dir)
-    outdir = check_folder_exists_or_create(f"{output_dir}{target_id}", return_folder=True)
-
-    if parallel: 
-        # pool = mp.Pool(processes=params['to_freq_cpus'])
-        client = Client(threads_per_worker=4, n_workers=params['to_freq_cpus'])
-        lazy_results = []
-    if parallel: 
-        # pool = mp.Pool(processes=params['to_freq_cpus'])
-        client = Client(threads_per_worker=4, n_workers=params['to_freq_cpus'])
-        lazy_results = []
-        
-        for beam in params['to_freq_beams']:
->>>>>>> Stashed changes
 
     current_directories = []
     input_files = []
     output_bases = []
 
-<<<<<<< Updated upstream
     # Construct files list
     # First, reference stations
     for ref in reference_ids:
@@ -167,34 +63,6 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
             input_files.append( f'{current_dir}{ref}_SAP000_B{beam:03d}_S0_P000_bf.h5' )
             outdir = check_folder_exists_or_create(f"{_outdir}{beam}", return_folder=True)
             output_bases.append( f'{outdir}{ref}_SAP000_B{0:03d}_P000_bf' )
-=======
-            # pool.apply_async(to_freq.main,
-            #                     args=(input_file, 
-            #                           output_base, 
-            #                           params['to_freq_num_chan'], 
-            #                           num_pol, 
-            #                           params['to_freq_num_files'],
-            #                           polmap,
-            #                           params['to_freq_cpus']))
-            lazy_results.append(dask.delayed(to_freq.main)(input_file, 
-                                                           output_base, 
-                                                           params['to_freq_num_chan'], 
-                                                           num_pol, 
-                                                           params['to_freq_num_files'],
-                                                           polmap,
-                                                           params['to_freq_cpus']))
-
-        # pool.close()
-        # pool.join()
-        dask.compute(*lazy_results)
-        # pool.close()
-        # pool.join()
-        dask.compute(*lazy_results)
-
-    else:
-        if verbose: 
-            print ('parallel:  to_freq_beams')
->>>>>>> Stashed changes
 
     # Second, target stations
     current_dir = f"{trunk_dir}{target_id}/{cs_str}/"
@@ -243,7 +111,6 @@ def _to_freq(trunk_dir, output_dir, cs_str, target_id, reference_ids, params, nu
             
     logger.info('Finished with to_freq step.')
 
-<<<<<<< Updated upstream
 def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, verbose=False):
     """ Correlate all spectral windows between all referece stations and the target station
 
@@ -267,9 +134,6 @@ def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, verbo
         Print extra information to stdout (other than log file)
     """
 
-=======
-def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, parallel, verbose=False):
->>>>>>> Stashed changes
     if verbose: 
         print ('xcorr')
         print ('Make output directories if necessary. _xcorr')
@@ -298,19 +162,11 @@ def _xcorr(output_dir, cs_str, reference_ids, target_id, xcorr_dt, params, paral
                   'n_rfi_max': 1}
 
     kwargs = {'target_time_res': xcorr_dt,
-<<<<<<< Updated upstream
               'rfiflag': params['xcorr_rfiflag'],
               'edges': params['xcorr_edges'],
               'rfi_kwargs': rfi_kwargs, 
               'parallel': params['parallel'],
               'use_numba': params['use_numba']}
-=======
-                'rfiflag': params['xcorr_rfiflag'],
-                'edges': params['xcorr_edges'],
-                'rfi_kwargs': rfi_kwargs}
-
-    if parallel:
->>>>>>> Stashed changes
 
     if not params['parallel']:
         for refid in reference_ids:
@@ -410,7 +266,6 @@ def _plot_beam(output_dir, params, verbose=False):
     if verbose: 
         print ('plot_beam')
 
-<<<<<<< Updated upstream
     os.chdir(output_dir)
 
     print (params['plot_beam_ffun'], 
@@ -438,9 +293,6 @@ def _gencal(output_dir, target_id, xcorr_dt, reference_ids, params, parallel, ve
     parallel: bool
     verbose: bool
     """
-=======
-def _gencal(output_dir, target_id, xcorr_dt, reference_ids, params, parallel, verbose=False):
->>>>>>> Stashed changes
     if verbose: 
         print ('gencal')
     target = lambda ref, refbm, spw: f'{output_dir}{target_id}_xcorr/{ref}/{refbm}/SAP000_B000_P000_spw{spw}_avg{xcorr_dt}.h5'
@@ -448,14 +300,7 @@ def _gencal(output_dir, target_id, xcorr_dt, reference_ids, params, parallel, ve
     
     kwargs = {'smooth': params['gencal_smooth']}
     
-<<<<<<< Updated upstream
     if not parallel:
-=======
-    if parallel:
-
-        pool = mp.Pool(processes=params['gencal_cpus'])
-
->>>>>>> Stashed changes
         for refid in reference_ids:
             for ref_beam in params['ref_beams']:
                 for spw in params['gencal_spws']:
@@ -477,7 +322,6 @@ def _gencal(output_dir, target_id, xcorr_dt, reference_ids, params, parallel, ve
         pool.close()
         pool.join()
 
-<<<<<<< Updated upstream
 def _applycal(output_dir, target_id, xcorr_dt, params, reference_ids, parallel, verbose=False):
     """Apply calibration
 
@@ -491,25 +335,13 @@ def _applycal(output_dir, target_id, xcorr_dt, params, reference_ids, parallel, 
     parallel: bool
     verbose: bool
     """
-=======
-                    gencal.main(tgt, out, **kwargs)
-
-def _applycal(output_dir, target_id, xcorr_dt, params, reference_ids, parallel, verbose=False):
->>>>>>> Stashed changes
     if verbose: 
         print ('applycal: _spw_avg')
 
     target = lambda ref, refbm, beam, spw: f'{output_dir}{target_id}_xcorr/{ref}/{refbm}/SAP000_B{beam:03d}_P000_spw{spw}_avg{xcorr_dt}.h5'
     output = lambda ref, refbm, beam, spw: f'{output_dir}{target_id}_xcorr/{ref}/{refbm}/SAP000_B{beam:03d}_P000_spw{spw}_avg{xcorr_dt}_cal.h5'
 
-<<<<<<< Updated upstream
     if not parallel:
-=======
-    if parallel:
-
-        pool = mp.Pool(processes=params['applycal_cpus'])
-
->>>>>>> Stashed changes
         for refid in reference_ids:
             for ref_beam in params['ref_beams']:
                 for spw in params['applycal_spws']:
@@ -535,16 +367,10 @@ def _applycal(output_dir, target_id, xcorr_dt, params, reference_ids, parallel, 
                         tgt = target(refid, ref_beam, beam, spw)
                         out = output(refid, ref_beam, beam, spw)
 
-<<<<<<< Updated upstream
                         pool.apply_async(applycal.main,
                                             args=(solutions_file, tgt, out))
         pool.close()
         pool.join()
-=======
-                        applycal.main(solutions_file, tgt, out)
-
-def _clip(output_dir, target_id, reference_ids, xcorr_dt, params, parallel):
->>>>>>> Stashed changes
 
 def _clip(output_dir, target_id, reference_ids, xcorr_dt, params, parallel):
     """Clip
@@ -563,14 +389,7 @@ def _clip(output_dir, target_id, reference_ids, xcorr_dt, params, parallel):
 
     kwargs = {'threshold': params['clip_threshold']}
 
-<<<<<<< Updated upstream
     if not parallel:
-=======
-    if parallel:
-
-        pool = mp.Pool(processes=params['clip_cpus'])
-
->>>>>>> Stashed changes
         for refid in reference_ids:
             for ref_beam in params['ref_beams']:
                 for spw in params['clip_spws']:
@@ -595,7 +414,6 @@ def _clip(output_dir, target_id, reference_ids, xcorr_dt, params, parallel):
         pool.join()
 
 def _average_t(output_dir, target_id, average_t_dt, reference_ids, xcorr_dt, params, parallel):
-<<<<<<< Updated upstream
     """Average in time
 
     Parameters
@@ -609,22 +427,13 @@ def _average_t(output_dir, target_id, average_t_dt, reference_ids, xcorr_dt, par
     params: dict
     parallel: bool
     """
-=======
->>>>>>> Stashed changes
     target = lambda ref, refbm, beam, spw: f'{output_dir}{target_id}_xcorr/{ref}/{refbm}/SAP000_B{beam:03d}_P000_spw{spw}_avg{xcorr_dt}_cal_clip.h5'
     output = lambda ref, refbm, beam, spw: f'{output_dir}{target_id}_xcorr/{ref}/{refbm}/SAP000_B{beam:03d}_P000_spw{spw}_avg{xcorr_dt}_cal_clip_avg{average_t_dt}.h5'
 
     kwargs = {'target_time_res': average_t_dt,
                 'weighted': params['average_t_weighted']}
 
-<<<<<<< Updated upstream
     if not parallel:
-=======
-    if parallel:
-
-        pool = mp.Pool(processes=params['average_t_cpus'])
-
->>>>>>> Stashed changes
         for refid in reference_ids:
             for ref_beam in params['ref_beams']:
                 for spw in params['average_t_spws']:
@@ -649,7 +458,6 @@ def _average_t(output_dir, target_id, average_t_dt, reference_ids, xcorr_dt, par
         pool.join()
 
 def _to_uvhol(output_dir, target_id, xcorr_dt, average_t_dt, reference_ids, params, parallel):
-<<<<<<< Updated upstream
     """To uvhol (U-V holography)
 
     Parameters
@@ -662,21 +470,12 @@ def _to_uvhol(output_dir, target_id, xcorr_dt, average_t_dt, reference_ids, para
     params: dict
     parallel: bool
     """
-=======
->>>>>>> Stashed changes
     target = lambda ref, refbm, spw: f'{output_dir}{target_id}_xcorr/{ref}/{refbm}/SAP000_B*_P000_spw{spw}_avg{xcorr_dt}_cal_clip_avg{average_t_dt}.h5'
     output = lambda ref, refbm, spw: f'{output_dir}{target_id}_xcorr/{ref}/{refbm}/spw{spw}_avg{xcorr_dt}_cal_clip_avg{average_t_dt}'
 
     logger = logging.getLogger(__name__)
 
-<<<<<<< Updated upstream
     if not parallel:
-=======
-    if parallel:
-
-        pool = mp.Pool(processes=params['to_uvhol_cpus'])
-
->>>>>>> Stashed changes
         for refid in reference_ids:
             for ref_beam in params['ref_beams']:
                 for spw in params['to_uvhol_spws']:

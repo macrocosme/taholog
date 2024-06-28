@@ -16,6 +16,14 @@ try:
 except ImportError: 
     has_cupy = False
 
+try:
+    import numba.cuda as cuda
+    import cmath
+    has_numba = True
+except ImportError: 
+    has_numba = False
+
+
 
 def fft_pyfftw_original(data, nspec, npol, nchan, polmap, threads=1):
     # pyFFTW aligned arrays to store input and output of DFT.
@@ -67,20 +75,12 @@ def fft_pyfftw(data, nspec, npol, nchan, polmap, threads=1):
     return fftdata
 
 def fft_cupy(cpu_data, nspec, npol, nchan, polmap, device=0):
-    # logger = logging.getLogger(__name__)
-
     mempool = cp.get_default_memory_pool()
     pinned_mempool = cp.get_default_pinned_memory_pool()
     with cp.cuda.Device(device):
         gpu_fftdata = cp.zeros((nspec,npol,nchan), dtype=np.complex64)
         # CPU to GPU
         gpu_data = cp.array(cpu_data.reshape(nspec, nchan, polmap.size), dtype=np.float64)    
-
-        # logger.info(f'CPU/GPU allocation')
-        # logger.info(f'gpu_data: {gpu_data.nbytes} bytes, gpu_fftdata: {gpu_fftdata.nbytes} bytes') 
-        # logger.info(f'mempool.used_bytes(): {mempool.used_bytes()}')
-        # logger.info(f'mempool.total_bytes(): {mempool.total_bytes()}')
-        # logger.info(f'pinned_mempool.n_free_blocks(): {pinned_mempool.n_free_blocks()}')
 
         for p in range(npol):  # X Y
             if len(polmap[p]) == 2:
@@ -94,10 +94,10 @@ def fft_cupy(cpu_data, nspec, npol, nchan, polmap, device=0):
                 i0 = polmap[p]
                 gpu_fftdata[:, p,:] = cp.fft.fftshift(cp.fft.fft(gpu_data[:, :, i0], axis=1), axes=(1,))
 
-        # GPU back to CPU 
         cpu_fftdata = cp.asnumpy(gpu_fftdata)
 
     return cpu_fftdata
+
 
 def fft_numpy(data, nspec, npol, nchan, polmap):
     fftdata = np.zeros((nspec,npol,nchan), dtype=np.complex64)

@@ -19,7 +19,6 @@ if __name__ == '__main__':
                                                                        'plot_report'],
                         help="Steps to be run")
     parser.add_argument("-p", "--parallel", action=argparse.BooleanOptionalAction, help = "Parallel: run steps with multiprocessing")
-    parser.add_argument("-p", "--parallel", action=argparse.BooleanOptionalAction, help = "Parallel: run steps with multiprocessing")
     parser.add_argument("-v", "--verbose", action=argparse.BooleanOptionalAction, help = "Verbose: print extra info about steps being run to terminal")
     parser.add_argument("-tid", "--target_id", type=str, default='L697741', help = "Observation SAS id")
     parser.add_argument("-rid", "--reference_ids", nargs='+', type=str, default=['L697733', 'L697735', 'L697737', 'L697739'], help="List of reference stations observations SAS ids")
@@ -32,6 +31,7 @@ if __name__ == '__main__':
     parser.add_argument("-numba", "--use_numba", action=argparse.BooleanOptionalAction, help = "Use numba: if False, runs default single-threaded python")
 
     parser.add_argument("-cpu", "--ncpus", type=int, default=2, help="Number of CPU cores to use when --parallel is used. (default: 2)")
+
 
     # Read arguments from command line
     args = parser.parse_args()

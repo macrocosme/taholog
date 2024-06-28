@@ -300,57 +300,5 @@ def main(input_file, output_base, current_dir, nchan=64, npols=2, nfiles=4, polm
                  beam_data, spw, nchan, nspec, npols, polmap, ntime, smplr, 
                  to_disk, use_pyfftw, use_gpu)
 
-<<<<<<< Updated upstream
     logger.info(f"Processed file {input_file.split('/')[-1]} in {datetime.now() - start_time}")
-=======
-        ctime = datetime.now()
-
-        # Check if process should be sent to CPU or GPU
-        if ncpus > 1:
-            # p_info = mp.current_process()
-            # pid = p_info.pid
-            # use_cupy = pid % ncpus < n_gpu_devices
-            # device = pid % ncpus if use_cupy else None
-            device = None
-            use_cupy = False
-        else:
-            use_cupy = True
-            device = 0
-
-        # logger.info(f'Use cuda: {use_cupy}')
-        # logger.info(f"Will process it on the {'cpu' if not use_cupy else 'gpu'} {device if use_cupy else ''}")
-
-        # Read the header and extract relevant information.
-        parse_head(input_file, beam, head, spw)
-
-        freq, beam_data_nu, beam_flag_nu = to_freq(beam_data[:,spw,:],
-                                                    nchan,
-                                                    nspec,
-                                                    npols,
-                                                    polmap,
-                                                    smplr,
-                                                    head['frequency_hz'],
-                                                    use_cupy, 
-                                                    device)
-
-        data = beam_data_nu
-        flag = beam_flag_nu
-
-        # Last header update before writing.
-        head['time_samples'] = ntime
-        head['integration_time_s'] = nchan*1./smplr
-
-        # Write output.
-        output = output_base + '_spw{0}.h5'.format(spw)
-        # logger.info('Saving file: {0}'.format(output))
-        save_hdf5(output, freq, data, flag, beam, head)
-        # results[spw] = [output, freq, data, flag, beam, head]
-        # results[spw] = [output, freq, data, flag, beam, head]
-
-        # logger.info(f'Processed spectral window: {spw}')
-        # logger.info(f'Processed one spectral window in: {datetime.now() - ctime} -- {input_file}')
-
-    logger.info('Processed file {0} in {1}'.format(input_file.split('/')[-1], datetime.now() - start_time))
-    # return results
->>>>>>> Stashed changes
 

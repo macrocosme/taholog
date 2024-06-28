@@ -36,7 +36,12 @@ def cross_correlate(dt, dr, dt_j:int, dr_i:int, dr_k:int, ch0:int, chf:int, para
         return cross_correlate_basic(dt, dr, dt_j, dr_i, dr_k, ch0, chf)
 
 def fast_average(xcorr, averaging_factor):
-    return np.average((xcorr).reshape((-1,averaging_factor,)+xcorr.shape[1:]), axis=1)
+    return np.average(
+        (xcorr).reshape(
+            (-1, averaging_factor,) + xcorr.shape[1:]
+        ), 
+        axis=1
+    )
 
 def estimate_error(xcorr, xcorr_avgt0_shape, averaging_factor):
     drz = np.zeros(xcorr_avgt0_shape, dtype=np.float32)
