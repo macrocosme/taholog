@@ -33,4 +33,4 @@ For more:
 Setup
 ------
 
-Refer to ``docs/setup.pdf`` for details. 
+Refer to ``setup.pdf`` for details. 
