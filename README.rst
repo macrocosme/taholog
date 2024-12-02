@@ -34,3 +34,10 @@ Setup
 ------
 
 Refer to ``setup.pdf`` for details. 
+
+
+Context and benchmark comparison
+---------------------------------
+
+Refer to ``LOFAR2.0_sprint_review_update-beam_holography.pdf`` for details. 
+
