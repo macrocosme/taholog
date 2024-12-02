@@ -39,8 +39,12 @@ Setup
 Refer to ``setup.pdf`` for details. 
 
 
-Context and benchmark comparison
----------------------------------
+Context
+--------
 
 Refer to ``LOFAR2.0_sprint_review_update-beam_holography.pdf`` for details. 
 
+Benchmarking algorithms
+-----------------------
+
+Refer to ``time_approaches.ipynb`` for benchmark results performed on drg23 (dragnet, ASTRON) for details. 
