@@ -5,7 +5,7 @@ Scripts for tied-array holography.
 
 Author(s)
 ---------
-Original work by P. Salas et al. 2020. *Astronomy & Astrophysics*. `635, A207 <https://www.aanda.org/articles/aa/full_html/2020/03/aa35670-19/aa35670-19.html>`_. 
+Original work by P. Salas, M. A. Brentjens, D. D. Bordenave, J. B. R. Oonk & H. J. A. Röttgering. 2020. *Astronomy & Astrophysics*. `635, A207 <https://www.aanda.org/articles/aa/full_html/2020/03/aa35670-19/aa35670-19.html>`_. 
 Code refactored, modularized, extended, and optimized by `@macrocosme <https://github.com/macrocosme>`_.
 
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
